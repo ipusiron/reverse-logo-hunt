@@ -40,11 +40,8 @@ demo: https://ipusiron.github.io/reverse-logo-hunt/
 
 ## 📸 スクリーンショット
 
->![任天堂ロゴを解析](assets/screenshot.png)
->*任天堂ロゴを解析*
->
->![任天堂とその関連会社の関連図](assets/screenshot2.png)
->*任天堂とその関連会社の関連図*
+>![任天堂とその関連会社の関連図](assets/screenshot.png)
+>*任天堂ロゴを解析した結果とその関連会社の関連図*
 
 ---
 
