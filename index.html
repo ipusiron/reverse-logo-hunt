@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.wikidata.org https://query.wikidata.org https://commons.wikimedia.org data: blob:; img-src 'self' data: blob: https://upload.wikimedia.org https://commons.wikimedia.org https://tile.openstreetmap.org; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; script-src 'self' 'wasm-unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; worker-src 'self' blob:; connect-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://www.wikidata.org https://query.wikidata.org https://commons.wikimedia.org https://upload.wikimedia.org https://storage.googleapis.com data:;"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reverse Logo Hunt</title>
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin="anonymous" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+          crossorigin="anonymous"></script>
+
+  <!-- Cytoscape -->
+  <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"
+          crossorigin="anonymous"></script>
+
+  <!-- Tesseract.js (WASM) -->
+  <script src="https://unpkg.com/tesseract.js@5.0.5/dist/tesseract.min.js"
+          crossorigin="anonymous"></script>
+
+  <!-- exifreader -->
+  <script src="https://cdn.jsdelivr.net/npm/exifreader@4.23.5/dist/exif-reader.js"
+          crossorigin="anonymous"></script>
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <div class="header-title">
+        <h1>⚡ REVERSE LOGO HUNT</h1>
+        <p class="subtitle">画像内ロゴを逆引きして企業マップ化する <strong>ロゴ逆引きOSINTツール</strong></p>
+      </div>
+      <div class="header-actions">
+        <a href="https://github.com/ipusiron/reverse-logo-hunt" target="_blank" rel="noopener noreferrer" class="header-button github-button" title="GitHubリポジトリ">
+          <svg class="github-icon" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+          </svg>
+          <span class="button-label">GitHub</span>
+        </a>
+        <button id="helpButton" class="header-button help-button" title="ヘルプ">
+          <span class="help-icon-text">❓</span>
+          <span class="button-label">ヘルプ</span>
+        </button>
+        <button class="header-button theme-toggle" id="themeToggle">
+          <span class="theme-icon">🌙</span>
+          <span class="button-label theme-label">ダークモード</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="left">
+      <div class="panel">
+        <h2>画像アップロード
+          <span class="help-icon">?
+            <span class="tooltip">ロゴが含まれる画像をアップロードしてください。<br>複数枚同時に選択可能です。JPEG、PNG形式に対応しています。</span>
+          </span>
+        </h2>
+        <div id="dropzone" class="dropzone">
+          <input id="fileInput" type="file" accept="image/*" multiple />
+          <p>ここに画像をドラッグ＆ドロップ、またはクリックして選択</p>
+        </div>
+
+        <div id="imageList" class="image-list"></div>
+
+        <div id="selectedImageCanvas" class="selected-image-canvas" style="display:none">
+          <h3>ロゴ領域を選択
+            <span class="help-icon">?
+              <span class="tooltip">画像上でマウスをドラッグしてロゴ領域を矩形選択してください。<br>複数のロゴがある場合は、1つずつ選択できます。</span>
+            </span>
+          </h3>
+          <div class="canvas-container">
+            <canvas id="markingCanvas"></canvas>
+          </div>
+          <div class="marking-controls">
+            <button id="clearSelection">選択をクリア</button>
+            <button id="analyzeSelection" class="primary">選択した領域を解析</button>
+          </div>
+          <div id="selectedROIs" class="selected-rois"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>マーク済みロゴ一覧
+          <span class="help-icon">?
+            <span class="tooltip">手動でマークしたロゴ領域の一覧です。<br>画像名、OCR結果、解析ステータスが表示されます。</span>
+          </span>
+        </h2>
+        <div id="markedLogos" class="marked-logos"></div>
+      </div>
+    </section>
+
+    <section id="right">
+      <div class="tabs">
+        <button class="tab-button active" data-tab="tab-justify">根拠・照合</button>
+        <button class="tab-button" data-tab="tab-map">企業情報（地図）</button>
+        <button class="tab-button" data-tab="tab-graph">関係図</button>
+        <button class="tab-button" data-tab="tab-history">履歴・エクスポート</button>
+      </div>
+
+      <div id="tab-justify" class="tab active">
+        <div class="justify">
+          <div id="emptyState" class="empty-state">
+            <h3>🔍 ロゴ検出を開始</h3>
+            <p>左側のパネルから画像をアップロードしてください。アップロード後、自動的にマーキング画面が表示されます。</p>
+
+            <div class="value-proposition">
+              <h4>💡 本ツールの優位性（手動検索との違い）</h4>
+              <ul class="advantages">
+                <li><strong>複数ロゴの一括処理</strong>：1枚の画像に複数企業ロゴがある場合、まとめて選択→自動解析</li>
+                <li><strong>関係図の自動生成</strong>：親会社・子会社・所有関係をWikidataから自動取得して可視化</li>
+                <li><strong>地理的マッピング</strong>：本社・拠点座標を自動取得して地図表示（EXIF位置と比較可能）</li>
+                <li><strong>客観的類似度スコア</strong>：pHash・色相・ORBの3軸で定量評価（主観判断を排除）</li>
+                <li><strong>出典の自動明示</strong>：Commonsロゴの作者・ライセンス・出典URLを自動付記</li>
+                <li><strong>履歴とエクスポート</strong>：解析結果をJSON/PNG形式で保存・共有可能</li>
+              </ul>
+              <p class="use-case"><strong>最適な用途</strong>：封書・請求書・パンフレット・看板写真など、複数企業ロゴが写った画像の<strong>一括OSINT分析</strong></p>
+            </div>
+
+            <ol class="instructions">
+              <li>画像をドラッグ＆ドロップまたは選択</li>
+              <li>表示されたフルスクリーン画面でマウスドラッグして矩形選択</li>
+              <li>複数のロゴがある場合は繰り返し選択可能</li>
+              <li>「選択した領域を解析」ボタンをクリック</li>
+            </ol>
+            <p class="note">選択した領域にOCRを実行し、Wikidataの企業情報と照合して類似度スコアを表示します。</p>
+            <p class="warning">⏱️ 処理時間の目安: 1ロゴあたり30秒-1分（OCR + Wikidata検索 + 類似度計算）<br><strong>選択したロゴが多いほど時間が増加します</strong>（例: 5ロゴ → 3-5分）</p>
+          </div>
+          <div id="justifyContent" class="justify-content" style="display:none">
+            <div class="justify-top">
+              <div>
+                <h3>ROIプレビュー
+                  <span class="help-icon">?
+                    <span class="tooltip">検出されたロゴ領域（Region of Interest）のクローズアップ画像です。<br>この領域がWikimedia Commonsのロゴと比較されます。</span>
+                  </span>
+                </h3>
+                <canvas id="roiCanvas" width="320" height="240"></canvas>
+              </div>
+              <div>
+                <h3>Commonsロゴ
+                  <span class="help-icon">?
+                    <span class="tooltip">Wikimedia Commonsから取得した企業の公式ロゴ画像です。<br>作者・ライセンス情報が下部に表示されます。</span>
+                  </span>
+                </h3>
+                <img id="commonsThumb" alt="commons-thumb" />
+                <div id="commonsMeta" class="meta small"></div>
+              </div>
+            </div>
+            <div class="justify-bottom">
+              <h3>スコア内訳
+                <span class="help-icon">?
+                  <span class="tooltip">ROIとCommonsロゴの類似度スコアです。<br>pHash（形状）、色相、ORB（特徴点）を組み合わせて総合スコアを算出します。<br>高いほど一致度が高いです。</span>
+                </span>
+              </h3>
+              <table class="score-table">
+                <thead><tr><th>指標</th><th>値</th></tr></thead>
+                <tbody id="scoreBody">
+                  <!-- rows injected -->
+                </tbody>
+              </table>
+              <div id="log" class="log small"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-map" class="tab">
+        <h3>企業情報（地図）
+          <span class="help-icon">?
+            <span class="tooltip">検出された企業の本社（HQ）や拠点、画像のEXIF位置情報を地図上に表示します。<br>ピンをクリックすると詳細情報が表示されます。</span>
+          </span>
+        </h3>
+        <div id="map" class="map"></div>
+        <div id="mapLegend" class="legend">
+          <span class="dot hq"></span> HQ
+          <span class="dot office"></span> Office/Factory
+          <span class="dot shot"></span> 撮影地点(EXIF)
+        </div>
+      </div>
+
+      <div id="tab-graph" class="tab">
+        <h3>関係図
+          <span class="help-icon">?
+            <span class="tooltip">Wikidataから取得した企業の親子関係、所有関係をグラフで可視化します。<br>オレンジのノードが検出企業、青色が関連企業です。</span>
+          </span>
+        </h3>
+        <div id="graph" class="graph"></div>
+        <div id="graphLegend" class="legend">
+          <span class="dot company"></span> 検出企業
+          <span class="dot related"></span> 関連企業（親会社・子会社等）
+        </div>
+      </div>
+
+      <div id="tab-history" class="tab">
+        <div class="history">
+          <h3>セッション履歴
+            <span class="help-icon">?
+              <span class="tooltip">過去の解析履歴がLocalStorageに保存されています（最大20件）。<br>解析日時、画像名、マーク数、解析完了数が記録されます。</span>
+            </span>
+          </h3>
+          <div id="historyList"></div>
+          <div class="export">
+            <button id="exportJSON">JSON書き出し
+              <span class="help-icon">?
+                <span class="tooltip">現在の検出結果をJSON形式でダウンロードします。<br>画像名、EXIF情報、検出結果が含まれます。</span>
+              </span>
+            </button>
+            <button id="exportPNG">選択画像にBB焼き込み出力
+              <span class="help-icon">?
+                <span class="tooltip">左側で選択した画像にBounding Box（緑色の枠）を焼き込んだPNG画像をダウンロードします。</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+  </footer>
+
+  <!-- Help Modal -->
+  <div id="helpModal" class="help-modal" style="display:none">
+    <div class="help-modal-content">
+      <div class="help-modal-header">
+        <h2>📖 ヘルプ</h2>
+        <button class="close-help-modal" title="閉じる">✕</button>
+      </div>
+      <div class="help-modal-body">
+        <section class="help-section">
+          <h3>🚀 基本的な使い方</h3>
+          <ol>
+            <li><strong>画像をアップロード</strong>: ドラッグ&ドロップまたはクリックして画像を選択</li>
+            <li><strong>ロゴ領域を選択</strong>: モーダル画面でマウスドラッグして矩形選択（複数選択可）</li>
+            <li><strong>解析を実行</strong>: 「選択した領域を解析」ボタンをクリック</li>
+            <li><strong>結果を確認</strong>: 各タブで類似度スコア、地図、関係図を確認</li>
+            <li><strong>結果を保存</strong>: JSON書き出しまたはPNG出力で保存</li>
+          </ol>
+        </section>
+
+        <section class="help-section">
+          <h3>⌨️ キーボードショートカット</h3>
+          <table class="shortcut-table">
+            <tr>
+              <td><kbd>1</kbd></td>
+              <td>根拠・照合タブに切り替え</td>
+            </tr>
+            <tr>
+              <td><kbd>2</kbd></td>
+              <td>企業情報（地図）タブに切り替え</td>
+            </tr>
+            <tr>
+              <td><kbd>3</kbd></td>
+              <td>関係図タブに切り替え</td>
+            </tr>
+            <tr>
+              <td><kbd>4</kbd></td>
+              <td>履歴・エクスポートタブに切り替え</td>
+            </tr>
+            <tr>
+              <td><kbd>←</kbd> <kbd>→</kbd></td>
+              <td>前の画像 / 次の画像に移動</td>
+            </tr>
+            <tr>
+              <td><kbd>Esc</kbd></td>
+              <td>モーダルを閉じる</td>
+            </tr>
+          </table>
+        </section>
+
+        <section class="help-section">
+          <h3>💡 精度向上のコツ</h3>
+          <ul>
+            <li><strong>推奨画像</strong>: 封書・請求書・パンフレット・看板写真など</li>
+            <li><strong>背景</strong>: シンプルでノイズが少ない画像が最適</li>
+            <li><strong>ロゴの鮮明さ</strong>: 明確に印刷されたロゴほど精度が向上</li>
+            <li><strong>画像サイズ</strong>: 大きすぎる場合は事前にリサイズ推奨</li>
+          </ul>
+        </section>
+
+        <section class="help-section">
+          <h3>🎯 関係図の矢印調整</h3>
+          <p>関係図タブで矢印をクリックすると調整パネルが表示されます：</p>
+          <ul>
+            <li><strong>曲線スタイル</strong>: ベジェ曲線、直線、セグメントなど選択可能</li>
+            <li><strong>曲線の強さ</strong>: スライダーで曲がり具合を調整</li>
+            <li><strong>制御点位置</strong>: 曲線の制御点位置を調整</li>
+            <li><strong>全矢印に適用</strong>: 現在の設定をすべての矢印に一括適用</li>
+          </ul>
+        </section>
+
+        <section class="help-section">
+          <h3>⏱️ 処理時間の目安</h3>
+          <ul>
+            <li><strong>1ロゴ</strong>: 約30秒〜1分</li>
+            <li><strong>3ロゴ</strong>: 約2〜5分</li>
+            <li>OCR、Wikidata検索、類似度計算が順次実行されます</li>
+          </ul>
+        </section>
+
+        <section class="help-section">
+          <h3>🔒 プライバシーとセキュリティ</h3>
+          <ul>
+            <li>アップロードされた画像は<strong>外部に送信されません</strong></li>
+            <li>すべての処理はブラウザー内で完結します</li>
+            <li>ロゴ画像はWikimedia Commonsから都度取得し、恒久保存はしません</li>
+          </ul>
+        </section>
+
+        <section class="help-section">
+          <h3>🐛 トラブルシューティング</h3>
+          <ul>
+            <li><strong>地図が表示されない</strong>: 地図タブに切り替えて少し待つ</li>
+            <li><strong>ロゴが検出されない</strong>: より鮮明な画像を使用するか、手動選択範囲を調整</li>
+            <li><strong>類似度スコアが低い</strong>: ロゴの角度や変形がある場合、スコアが低下する可能性があります</li>
+          </ul>
+        </section>
+
+        <section class="help-section">
+          <h3>📚 詳細情報</h3>
+          <p>
+            詳しい使い方やソースコードは<a href="https://github.com/ipusiron/reverse-logo-hunt" target="_blank" rel="noopener noreferrer">GitHubリポジトリ</a>をご覧ください。
+          </p>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/detect.js"></script>
+  <script type="module" src="js/wikidata.js"></script>
+  <script type="module" src="js/commons.js"></script>
+  <script type="module" src="js/map.js"></script>
+  <script type="module" src="js/graph.js"></script>
+  <script type="module" src="js/exif.js"></script>
+</body>
+</html>
