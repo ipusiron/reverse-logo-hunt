@@ -19,11 +19,11 @@ This is a static web application with no build step:
 
 ```bash
 # Local development - serve with any HTTP server
-npx http-server .
+npx http-server . --cors
 # or
 python -m http.server 8000
 
-# Open browser to http://localhost:8000
+# Open browser to http://localhost:8080 (http-server) or http://localhost:8000 (python)
 ```
 
 For Windows with Git Bash:
@@ -32,6 +32,8 @@ start index.html  # Opens directly in default browser
 ```
 
 The app is also deployable to GitHub Pages (already configured with `.nojekyll`).
+
+**Debug tip**: Enable DevTools network throttling to simulate slow Wikidata calls and validate status handling.
 
 ## Architecture
 
@@ -106,6 +108,15 @@ When adding external dependencies, update the CSP header.
 - IndexedDB cache reduces API calls for repeated queries (cache.js with 24-hour expiry)
 - CORS enabled for Commons images via `crossOrigin='anonymous'`
 
+## Coding Style
+
+- 2-space indentation, semicolons required
+- `const`/`let` (no `var`), camelCase for variables/functions/DOM IDs
+- Order imports: external packages first, then local utilities
+- Console log prefixes: `[MAP]`, `[COMMONS]`, `[WIKIDATA]`, `[MAIN]`, `[UI]`
+- File naming: lowercase-kebab-case
+- Data attributes: `data-tab`, `data-layer`, `data-mode`
+
 ## Common Development Tasks
 
 ### Adding a New Tab
@@ -147,8 +158,10 @@ When adding external dependencies, update the CSP header.
 
 No automated tests exist. Manual testing checklist:
 - Upload images with clear logos (PNG/JPG)
-- Verify EXIF GPS parsing with geotagged photos
+- Verify EXIF GPS parsing with geotagged photos (also test images without GPS metadata for fallback)
 - Test with Japanese and English company names
 - Confirm Commons attribution links work
 - Check CSP compliance in browser console
 - Verify map markers appear at correct coordinates
+- Toggle offline mode to verify IndexedDB cache continues serving without errors
+- Export workspace JSON, re-import, and confirm session restores (AI suggestions, tab state, map controls)

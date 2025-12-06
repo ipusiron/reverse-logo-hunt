@@ -1,11 +1,39 @@
 <!--
 ---
-title: Reverse Logo Hunt
-category: osint-tools
-difficulty: 3
-description: Detect logos in images and map corporate relationships using client-side analysis.
-tags: [osint, forensics, logo-detection, map, javascript]
-demo: https://ipusiron.github.io/reverse-logo-hunt/
+id: day091
+slug: reverse-logo-hunt
+
+title: "Reverse Logo Hunt"
+
+subtitle_ja: "ロゴを逆引きして企業マップ化するOSINTツール"
+subtitle_en: "OSINT tool for reverse logo lookup and corporate relationship mapping"
+
+description_ja: "画像内のロゴを検出し、Wikidata/Wikimedia Commonsと照合して企業を特定。本社・拠点を地図上にプロット、親会社・子会社の関係図を自動生成するクライアントサイド完結型OSINTツール。"
+description_en: "Detect logos in images and identify companies using Wikidata/Wikimedia Commons. Visualize HQ locations on maps and auto-generate corporate relationship graphs. Fully client-side OSINT tool with no image uploads."
+
+category_ja:
+  - OSINT
+  - フォレンジック
+category_en:
+  - OSINT
+  - Forensics
+
+difficulty: 2
+
+tags:
+  - osint
+  - forensics
+  - logo-detection
+  - wikidata
+  - leaflet
+  - cytoscape
+  - ocr
+  - javascript
+
+repo_url: "https://github.com/ipusiron/reverse-logo-hunt"
+demo_url: "https://ipusiron.github.io/reverse-logo-hunt/"
+
+hub: true
 ---
 -->
 
@@ -29,12 +57,13 @@ demo: https://ipusiron.github.io/reverse-logo-hunt/
 
 ---
 
-
 ## 🌐 デモページ
 
 👉 **[https://ipusiron.github.io/reverse-logo-hunt/](https://ipusiron.github.io/reverse-logo-hunt/)**
 
 ブラウザーで直接お試しいただけます。
+
+※アイデア先行でまだツールの完成度が低いので、将来的に改良する予定です。
 
 ---
 
