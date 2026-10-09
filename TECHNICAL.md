@@ -37,6 +37,8 @@
 | `js/ocr-prep.js` | 計算部 | OCRの前の拡大・グレースケール・反転・枠の除去 |
 | `js/roi-suggest.js` | 計算部 | 「自動で候補を囲む」 |
 | `js/session-core.js` | 計算部 | JSONの書き出しの形と、読み込みの検証 |
+| `js/group-core.js` | 計算部 | 写真の全社の親・所有者をたどり、共通の親を見つける |
+| `js/geo.js` | 計算部 | 2点の大円距離と方位（8方位） |
 | `js/wikidata.js` | 通信 | Wikidataへの問い合わせとキャッシュ |
 | `js/commons.js` | 通信 | Commonsへの問い合わせとキャッシュ |
 | `js/cache.js` | 通信 | IndexedDBの24時間キャッシュ |
@@ -46,7 +48,8 @@
 | `js/marking.js` | 画面 | ロゴを囲む画面（Pointer Events） |
 | `js/map.js` | 画面 | Leafletの地図 |
 | `js/graph.js` | 画面 | Cytoscape.jsの関係図 |
-| `js/messages.js` | 画面 | 画面の文言の辞書 |
+| `js/messages.js` | 画面 | 画面の文言の辞書（日本語・英語）と、最初の言語の決め方 |
+| `js/i18n.js` | 画面 | data-i18n・data-i18n-attr の要素へ辞書の文言を入れる、言語の切り替え |
 | `js/storage.js` | 画面 | localStorageを使えなくても止まらない読み書き |
 | `js/main.js` | 画面 | 全体の組み立てと操作 |
 
@@ -79,6 +82,11 @@
 
 ## OCRと検索語
 
+### 言語と段組みの判定
+
+- 言語は、ロゴを囲む画面の「OCRの言語」で英語（`eng`）か日本語と英語（`jpn+eng`）を選びます。日本語のデータ（`jpn.traineddata.gz`、約2.0MB）は、選んだときだけ読み込みます。ワーカーは言語ごとに1つ作って使い回します
+- 段組みの判定（PSM）は、Tesseract.jsの既定と同じ6（1つのブロック）を使います。3（自動）にすると、1行だけの文字の看板（LEXUS・TOYOTA・DAIHATSU）の単語が0件になりました（2026-10-09に実測。第1弾の追補で一度3にしてしまい、PR #2で6に戻しました）
+
 ### 下ごしらえ（`ocr-prep.js`）
 
 - 高さが120px未満の領域は、120pxになるまで拡大する（最大3倍）。Tesseractは小さい字を読み落とすため
@@ -98,6 +106,7 @@
 - Tesseractの単語の高さと確からしさがあれば、「高さ×(0.5＋確からしさ)」の大きい語を前にする（ロゴの社名はたいてい一番大きい字）
 - 捨てるもの: 数字だけ、同じ文字の繰り返し、母音のない6文字以上の英字列（読み違いに多い）、the・Ltd・Incなどの語
 - 残すもの: 子音だけの短い略称（BMW・DHL・HSBC）、2文字の略称（HP・LG・3M）、日本語（2文字以上）
+- 日本語の字どうしの間の空白はつなぐ（Tesseractの日本語は「任 天 堂」のように1字ずつ区切ることがある）
 - 最大5つ
 
 ---
@@ -134,16 +143,41 @@ SELECT ?item ?logo ?hq ?hqLabel ?coord ?isOrg ?isBrand WHERE {
 ### 関係
 
 ```sparql
-SELECT ?kind ?other ?otherLabel WHERE {
+SELECT ?kind ?other ?otherLabel ?start ?end ?share WHERE {
   VALUES ?company { wd:Q8093 }
-  { ?company wdt:P355 ?other. BIND("subsidiary" AS ?kind) }
-  UNION { ?company wdt:P749 ?other. BIND("parent" AS ?kind) }
-  UNION { ?company wdt:P127 ?other. BIND("owner" AS ?kind) }
+  { ?company p:P355 ?st. ?st ps:P355 ?other. BIND("subsidiary" AS ?kind) }
+  UNION { ?company p:P749 ?st. ?st ps:P749 ?other. BIND("parent" AS ?kind) }
+  UNION { ?company p:P127 ?st. ?st ps:P127 ?other. BIND("owner" AS ?kind) }
+  FILTER NOT EXISTS { ?st wikibase:rank wikibase:DeprecatedRank }
+  OPTIONAL { ?st pq:P580 ?start. }
+  OPTIONAL { ?st pq:P582 ?end. }
+  OPTIONAL { ?st pq:P1107 ?share. }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "ja,en,mul". }
 } LIMIT 300
 ```
 
-`parseRelations`は矢印を「親会社・所有者→子会社・所有される側」にそろえます。同じ相手との関係（親会社かつ所有者など）は1本の矢印にまとめます。
+- `wdt:`（最良のランクの値だけ）ではなく`p:`/`ps:`で文を引き、廃止のランクを除きます。終わった関係が通常のランクで残っていることがあるためです
+- `parseRelations`は矢印を「親会社・所有者→子会社・所有される側」にそろえます。同じ相手との関係（親会社かつ所有者など）は1本の矢印にまとめ、文（開始・終了の年、持ち株の比率）を並べます。すべての文に終了の年があれば、終わった関係（点線）にします
+- 矢印の名前は`statementLabel`で作ります。日本語は「所有者17.1%」「子会社（1990〜2016）」、英語は「Owner 17.1%」「Subsidiary (1990–2016)」です
+
+### 共通の親（`group-core.js`）
+
+```sparql
+SELECT ?child ?kind ?parent ?parentLabel ?end WHERE {
+  VALUES ?child { wd:Q35919 wd:Q27511 wd:Q53268 … }
+  { ?child p:P749 ?st. ?st ps:P749 ?parent. BIND("parent" AS ?kind) }
+  UNION { ?child p:P127 ?st. ?st ps:P127 ?parent. BIND("owner" AS ?kind) }
+  FILTER NOT EXISTS { ?st wikibase:rank wikibase:DeprecatedRank }
+  OPTIONAL { ?st pq:P582 ?end. }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "ja,en,mul". }
+} LIMIT 500
+```
+
+- 選んだ会社から1段ずつ、まだたどっていない親・所有者を次の段の`VALUES`にして、最大3段まで問い合わせます（`fetchAncestorLinks`）
+- `buildGroup`は、終了の年がない関係だけで上へたどり、各祖先に「どの選んだ会社から何段上か」を記録します。2社以上がたどり着いた祖先が共通の親です。並べ方は、たどり着いた会社の数が多い順、次に段の少ない順です
+- 選んだ会社どうしが親子のとき（レクサスとトヨタ自動車など）、親の会社は自分自身から0段上として数えるので、共通の親になります
+- 2026-10-09の実データ: レクサス・トヨタ自動車・ダイハツ工業 → トヨタ自動車（3社、最大1段上）と日本生命保険（3社、最大2段上）。ユニクロ・ジーユー → ファーストリテイリング（2社、1段上）
+- 関係図は「写真の全社と共通の親」に切り替えると階層の配置になり、上に親・所有者、下に選んだ会社が並びます。共通の親は太い赤の枠で出します
 
 ---
 
@@ -221,6 +255,20 @@ README.mdの「照合の当たり具合」を見てください。作業側の�
 - 地図: OpenStreetMapのタイル（`https://tile.openstreetmap.org/{z}/{x}/{y}.png`）。タイルの利用規約が有効なRefererを求めるので、`<meta name="referrer">`は`strict-origin-when-cross-origin`にしています。帰属表示は「© OpenStreetMap contributors」。本社と撮影地点の両方が入るように表示範囲を合わせます
 - 関係図: 既定の配置は同心円（選んだ会社を中心に、関係のある会社をまわりに並べる）。隠れたタブで配置すると大きさ0で計算されるので、タブを表示したときに`cy.resize()`と`cy.fit()`を呼びます
 - 関係図の矢印の曲線は、矢印ごとに設定を残し、表示を切り替えても戻りません
+
+### 距離と方角（`geo.js`）
+
+- 大円距離 = 2R・asin(√(sin²(Δφ/2) + cosφ₁cosφ₂sin²(Δλ/2)))、R = 6371.0088km（地球の平均半径）
+- 方位 = atan2(sinΔλ・cosφ₂, cosφ₁sinφ₂ − sinφ₁cosφ₂cosΔλ)を0〜360°にし、45°ごとの8方位に丸める
+- 10km未満は小数1桁、それ以上は整数
+- 地図には、同じ画像で会社を選んだロゴの本社をすべて出し、撮影地点からの点線と表を出します。看板の画像の例（撮影地点35.68111, 139.76694）では、任天堂（京都市）が370km・西でした
+
+### 日英の切り替え（`messages.js`・`i18n.js`）
+
+- 辞書は日英で同じキーを持ちます。HTMLの文言は`data-i18n`（文字）と`data-i18n-attr`（`aria-label`などの属性）で辞書のキーを指し、HTMLに書いた既定の文は日本語の値と同じにしておきます（`test/i18n.test.js`で検査）
+- 最初の言語は、URLの`?lang=` → 保存した選択（localStorage）→ ブラウザーの言語（日本語なら日本語、それ以外は英語）の順で決めます
+- 切り替えたときは、計算をやり直さず、同じ状態で描き直します。候補の会社名と説明は検索したときの言語のままで、検索し直すと新しい言語になります
+- 区切り文字（「・」と「, 」）や、比率・年の書き方も言語ごとに分けています
 
 ---
 
@@ -313,7 +361,10 @@ object-src 'none'; base-uri 'none'; form-action 'none'
 | `test/html.test.js` | CSP・SRI・Referer・innerHTMLを使わないこと・主な要素 |
 | `test/contrast.test.js` | ダーク・ライトの配色のコントラスト比 |
 | `test/format.test.js` | 行の長さ・行数・見えない文字 |
-| `test/readme.test.js` | READMEの構造・表記・数値 |
+| `test/group-core.test.js` | 共通の親（実際の応答、段の上限、終わった関係） |
+| `test/geo.test.js` | 距離と方角 |
+| `test/i18n.test.js` | 日英の辞書（同じキー・差し込み・英語に日本語なし・HTMLとの一致） |
+| `test/readme.test.js` | README（日英）の構造・表記・数値 |
 
 ブラウザーでの確認（Playwright、リポジトリの外のスクリプト）では、Chromium・Firefoxで次を確かめています。
 
@@ -326,7 +377,8 @@ object-src 'none'; base-uri 'none'; form-action 'none'
 
 ## 限界と今後
 
-- OCRは英語の文字だけです。日本語の看板は検索語を手で入れます
+- 日本語のOCRは横書きだけです（縦書きのデータは読み込みません）
 - 文字のないロゴは、検索語を手で入れる必要があります
-- 関係図は、関係が今も続いているか（終了日）や持ち株の比率を区別していません
+- 終了の年が書かれていない関係は、今も続いているとみなします。共通の親は3段上までです
 - 照合は、遠近の歪みや一部が隠れたロゴに弱い方式です（射影の補正や特徴点の対応づけは入れていません）
+- 地図のタイルの地名は、画面の言語にかかわらずOpenStreetMapの現地の言語です

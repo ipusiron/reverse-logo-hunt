@@ -202,11 +202,12 @@ export function parseRelations(json, centerQid) {
   return { nodes: [...nodes.values()], edges: [...edges.values()] };
 }
 
-// 矢印の名前。labelOf(kind) で種類の名前を引く。例: 「子会社（2002〜）」「所有者 17.1%」「子会社（〜2016）」
-export function statementLabel(st, labelOf) {
+// 矢印の名前。labelOf(kind) で種類の名前を引く。例: 「子会社（2002〜）」「所有者17.1%」「子会社（〜2016）」
+// sep は名前と比率の間、open・close・dash は年の括弧と範囲の記号（日本語は「（1990〜2016）」、英語は「 (1990–2016)」）
+export function statementLabel(st, labelOf, { sep = "", open = "（", close = "）", dash = "〜" } = {}) {
   let s = labelOf(st.kind);
-  if (st.share !== null && st.share !== undefined) s += ` ${(st.share * 100).toFixed(1)}%`;
-  if (st.start !== null || st.end !== null) s += `（${st.start === null ? "" : st.start}〜${st.end === null ? "" : st.end}）`;
+  if (st.share !== null && st.share !== undefined) s += `${sep}${(st.share * 100).toFixed(1)}%`;
+  if (st.start !== null || st.end !== null) s += `${open}${st.start === null ? "" : st.start}${dash}${st.end === null ? "" : st.end}${close}`;
   return s;
 }
 

@@ -118,7 +118,10 @@ test("関係の文の開始・終了の年と持ち株の比率を読み、す�
   const name = (k) => ({ subsidiary: "子会社", owner: "所有者" })[k];
   assert.equal(W.statementLabel(by("Q3").statements[0], name), "子会社（2002〜）");
   assert.equal(W.statementLabel(by("Q4").statements[0], name), "子会社（1990〜2016）");
-  assert.equal(W.statementLabel(by("Q5").statements[0], name), "所有者 17.1%");
+  assert.equal(W.statementLabel(by("Q5").statements[0], name), "所有者17.1%");
+  assert.equal(W.statementLabel(by("Q5").statements[0], () => "Owner", { sep: " " }), "Owner 17.1%");
+  const en = { sep: " ", open: " (", close: ")", dash: "–" };
+  assert.equal(W.statementLabel(by("Q4").statements[0], () => "Subsidiary", en), "Subsidiary (1990–2016)");
   assert.equal(W.yearOf({ value: "-0500-01-01T00:00:00Z" }), -500);
   assert.equal(W.yearOf(null), null);
 });

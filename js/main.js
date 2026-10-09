@@ -627,7 +627,7 @@ function renderGroupSummary(message, shared = [], names = new Map()) {
   }
   const ul = el("ul", "group-list");
   for (const s of shared) {
-    const who = s.companies.map((q) => names.get(q) || q).join("・");
+    const who = s.companies.map((q) => names.get(q) || q).join(getLang() === "ja" ? "・" : ", ");
     ul.appendChild(el("li", "", t("group.item", { label: s.label, companies: who, depth: s.depth })));
   }
   box.appendChild(ul);

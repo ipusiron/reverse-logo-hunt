@@ -3,7 +3,7 @@
 //   single: 選んだ1社の関係（wikidata-core.js の parseRelations() の形 { nodes, edges: [{ source, target, kinds, statements, ended }] }）
 //   group : 写真の全社と共通の親（group-core.js の buildGroup() の形 { nodes, edges, shared }）
 // 終わった関係（終了の年がある）は灰色の点線で出す
-import { t } from "./messages.js";
+import { t, getLang } from "./messages.js";
 import { statementLabel } from "./wikidata-core.js";
 
 let cy = null;
@@ -166,7 +166,10 @@ function renderSingle(center, rel) {
       used.add(q);
     }
     const id = `${e.source}>${e.target}`;
-    const edge = cy.add({ group: "edges", data: edgeData(id, e, statements.map((st) => statementLabel(st, kindLabel)).join("・")) });
+    const ja = getLang() === "ja";
+    const fmt = ja ? { sep: "" } : { sep: " ", open: " (", close: ")", dash: "–" };
+    const label = statements.map((st) => statementLabel(st, kindLabel, fmt)).join(ja ? "・" : " / ");
+    const edge = cy.add({ group: "edges", data: edgeData(id, e, label) });
     if (e.ended) edge.addClass("ended");
   }
 }
@@ -181,7 +184,7 @@ function renderGroup(group) {
     const kinds = e.kinds.filter((k) => filterState[k]);
     if (!kinds.length) continue;
     const id = `${e.source}>${e.target}`;
-    const edge = cy.add({ group: "edges", data: edgeData(id, e, kinds.map(kindLabel).join("・")) });
+    const edge = cy.add({ group: "edges", data: edgeData(id, e, kinds.map(kindLabel).join(getLang() === "ja" ? "・" : " / ")) });
     if (e.ended) edge.addClass("ended");
   }
 }
