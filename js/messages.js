@@ -98,6 +98,7 @@ export const MESSAGES = {
     "rel.owner": "所有者",
     "graph.relations": "関係:",
     "graph.layout": "レイアウト:",
+    "layout.concentric": "同心円",
     "layout.cose": "フォース",
     "layout.breadthfirst": "階層",
     "layout.circle": "円形",

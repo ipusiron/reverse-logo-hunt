@@ -5,7 +5,7 @@ import { t } from "./messages.js";
 let cy = null;
 let current = null;
 let controlBuilt = false;
-let layoutName = "cose";
+let layoutName = "concentric";
 let selectedEdge = null;
 const filterState = { subsidiary: true, parent: true, owner: true };
 // 矢印ごとに手で変えた曲線の設定（再描画しても残す）
@@ -145,10 +145,21 @@ function render() {
   runLayout();
 }
 
+// 配置ごとの設定。同心円は選んだ会社を中心に、関係のある会社をまわりに並べる（名前が重なりにくい）
+function layoutOptions(name) {
+  const base = { name, animate: false, fit: true, padding: 30 };
+  if (name === "concentric") {
+    return { ...base, concentric: (n) => (n.data("type") === "company" ? 2 : 1), levelWidth: () => 1, minNodeSpacing: 24, spacingFactor: 0.9 };
+  }
+  if (name === "cose") return { ...base, idealEdgeLength: () => 140, nodeRepulsion: () => 12000, nodeOverlap: 20 };
+  if (name === "breadthfirst") return { ...base, directed: true, spacingFactor: 1.2 };
+  return base;
+}
+
 function runLayout() {
   if (!cy) return;
   cy.resize();
-  cy.layout({ name: layoutName, animate: false, fit: true, padding: 30 }).run();
+  cy.layout(layoutOptions(layoutName)).run();
 }
 
 // タブを表示したときに呼ぶ（隠れたタブで配置すると大きさ0で計算され、表示したときに図が切れるため）
@@ -194,7 +205,7 @@ function ensureControl() {
   lab.textContent = t("graph.layout");
   const select = document.createElement("select");
   select.id = "graphLayout";
-  for (const name of ["cose", "breadthfirst", "circle"]) {
+  for (const name of ["concentric", "cose", "breadthfirst", "circle"]) {
     const o = document.createElement("option");
     o.value = name;
     o.textContent = t(`layout.${name}`);

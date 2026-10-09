@@ -4,164 +4,57 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Reverse Logo Hunt** is a client-side OSINT tool that detects corporate logos in images and visualizes company relationships through maps and graphs. All image processing happens in the browser using Wikidata/Wikimedia Commons as data sources.
+**Reverse Logo Hunt** is a client-side OSINT tool. The user marks a logo in an image; the tool reads its text with OCR (Tesseract.js), searches Wikidata, compares each candidate with its official logo on Wikimedia Commons, and ranks the candidates. The user confirms the company; its headquarters and the photo location (EXIF GPS) are shown on a map, and its parents, subsidiaries and owners on a relation graph. Images never leave the browser.
 
-Key capabilities:
-- Logo detection in uploaded images using edge detection + OCR
-- Company information retrieval from Wikidata
-- Logo verification via image similarity (pHash, color histogram, edge correlation)
-- Geographic visualization of HQ/offices on Leaflet maps
-- Corporate relationship graphs using Cytoscape.js
+See `README.md` for users and `TECHNICAL.md` for the algorithms, queries and security design.
 
-## Running the Application
-
-This is a static web application with no build step:
+## Running and Testing
 
 ```bash
-# Local development - serve with any HTTP server
-npx http-server . --cors
-# or
-python -m http.server 8000
-
-# Open browser to http://localhost:8080 (http-server) or http://localhost:8000 (python)
+npm test                      # node --test, Node 22+, no dependencies
+python -m http.server 8000    # then open http://localhost:8000/ (Chrome/Edge refuse ES modules from file://)
 ```
 
-For Windows with Git Bash:
-```bash
-start index.html  # Opens directly in default browser
-```
-
-The app is also deployable to GitHub Pages (already configured with `.nojekyll`).
-
-**Debug tip**: Enable DevTools network throttling to simulate slow Wikidata calls and validate status handling.
+GitHub Actions runs `npm test` on every push and pull request (`.github/workflows/test.yml`).
 
 ## Architecture
 
-### Module Structure
+Pure logic ("calculation") modules have no DOM or network dependencies and are tested with `node --test`:
 
-The application uses ES6 modules with clear separation of concerns:
+- `js/logo-match.js` - background estimation, foreground extraction, and the four similarity values (shape, light-dark structure, aspect ratio, colour). Weights 0.35/0.25/0.15/0.25
+- `js/brand-text.js` - search-query candidates from OCR text (keeps BMW/HP/3M/Japanese, up to 5)
+- `js/wikidata-core.js` - wbsearchentities URL, SPARQL builders (only validated QIDs are embedded), parsers, relation direction (always parent/owner -> child)
+- `js/commons-core.js` - imageinfo URL (width 330), parser, `htmlToText` for the Artist field, URL allow-lists
+- `js/exif-core.js` - GPS from ExifReader's expanded tags (signed decimal numbers)
+- `js/candidate-rank.js` - combined score = 0.4*search rank + 0.2*type + 0.4*visual (0.5 when no logo)
+- `js/ocr-prep.js` - upscale, grayscale, inversion, frame removal for OCR retries
+- `js/roi-suggest.js` - "auto mark" by connected ink components
+- `js/session-core.js` - workspace JSON v3 builder and validator (also reads v2)
 
-- **main.js** - Entry point, UI orchestration, image upload handling, similarity scoring pipeline, JSON import/export
-- **detect.js** - Logo ROI extraction (edge detection → sliding window → OCR → NMS)
-- **wikidata.js** - SPARQL queries for company data (logo P154, HQ P159, relations P355/P749/P127)
-- **commons.js** - Wikimedia Commons API for logo thumbnails and attribution metadata
-- **cache.js** - IndexedDB caching layer for Wikidata/Commons responses (24-hour TTL)
-- **map.js** - Leaflet map with HQ/office/EXIF location markers
-- **graph.js** - Cytoscape.js visualization of corporate relationships
-- **exif.js** - GPS coordinate extraction from uploaded images
+Network / UI modules:
 
-### Data Flow
+- `js/wikidata.js`, `js/commons.js`, `js/cache.js` - fetch with a 24-hour IndexedDB cache
+- `js/analysis.js` - search -> details -> logo matching -> ranking for one region
+- `js/ocr.js` - one shared Tesseract worker per language
+- `js/marking.js` - the marking modal (Pointer Events: mouse, touch, pen)
+- `js/map.js` (Leaflet + OSM tiles), `js/graph.js` (Cytoscape, concentric layout by default)
+- `js/main.js` - state, rendering, export/import, theme, keyboard
+- `js/messages.js` - UI strings; `js/storage.js` - safe localStorage
 
-1. **Image Upload** → Resize to configurable max dimension (default 1536px)
-2. **ROI Detection** → Sobel edge detection → Grid sampling → Edge density scoring → NMS deduplication
-3. **OCR** → Tesseract.js on each ROI → Brand name extraction
-4. **Wikidata Lookup** → SPARQL search by brand name → Retrieve top 10 candidates with logo/HQ data
-5. **Logo Matching** → Download Commons logo thumbnails → Compute similarity scores:
-   - 50% pHash (perceptual hash hamming distance)
-   - 30% Color histogram cosine similarity
-   - 20% Edge correlation (ORB approximation via Sobel)
-6. **Visualization** → Best match triggers:
-   - Map pin at HQ coordinates
-   - Corporate relationship graph
-   - ROI/Commons logo comparison UI
+## Rules That Tests Enforce
 
-### Key Algorithms
+- CSP stays `default-src 'self'`; no `'unsafe-inline'` or `'unsafe-eval'` (`'wasm-unsafe-eval'` only). The `style-src` hash allows Cytoscape's single injected line. `connect-src` keeps `data:` for Tesseract's embedded WASM
+- Every external `<script>` is version-pinned with SRI. Recompute hashes from the real files if a version changes
+- Keep `<meta name="referrer" content="strict-origin-when-cross-origin">` (the OSM tile policy needs a Referer)
+- Never use `innerHTML`/`insertAdjacentHTML`; build DOM with `textContent`
+- No inline event handlers or `style` attributes in `index.html`
+- Colours live in CSS variables in `style.css`; `test/contrast.test.js` checks text pairs at 4.5:1 in both themes
+- Lines: JS/CSS <= 160 characters, `index.html` <= 250
+- README numbers (weights, example values) are recomputed by `test/readme.test.js`; update them together with the code
+- The README directory tree must list every file with a one-line description
 
-**Logo Detection (detect.js:84-105)**
-- Sliding window at 15%/23% of min(width,height)
-- 60% overlap for better coverage
-- Edge density threshold >0.15
-- Maximum 16 ROIs per image
+## Notes
 
-**Similarity Scoring (main.js:214-244)**
-- Simplified pHash using 8x8 average hash (64-bit)
-- 24-bin color histogram (12 hue bins × 2 value bands)
-- Edge-based ORB approximation (128×128 Sobel correlation)
-- Combined score: 0.5×pHash + 0.3×color + 0.2×ORB
-
-**Wikidata Integration (wikidata.js)**
-- Uses MWApi service for fuzzy search (not exact match)
-- Retrieves P154 (logo), P159→P625 (HQ coordinates)
-- Relation queries: P355 (subsidiary), P749 (parent), P127 (owned by)
-
-## Important Implementation Details
-
-### Content Security Policy
-The CSP in index.html:5 is strict and allows only:
-- Self + specific CDNs (unpkg, jsdelivr, cdnjs)
-- Wikidata/Commons APIs
-- `data:` and `blob:` for local image processing
-- `unsafe-inline` styles only (no inline scripts)
-
-When adding external dependencies, update the CSP header.
-
-### Privacy & Licensing
-- No uploaded images leave the browser (stated in index.html)
-- Commons logos are fetched on-demand, not permanently stored
-- Attribution is auto-generated (commons.js) with artist/license/source link
-- IndexedDB cache implemented (cache.js) with 24-hour TTL for Wikidata/Commons API responses
-
-### Performance Considerations
-- Tesseract.js workers are terminated after each ROI to free memory
-- Images are downscaled before processing (default max 1536px)
-- NMS deduplication prevents redundant Wikidata queries
-- IndexedDB cache reduces API calls for repeated queries (cache.js with 24-hour expiry)
-- CORS enabled for Commons images via `crossOrigin='anonymous'`
-
-## Coding Style
-
-- 2-space indentation, semicolons required
-- `const`/`let` (no `var`), camelCase for variables/functions/DOM IDs
-- Order imports: external packages first, then local utilities
-- Console log prefixes: `[MAP]`, `[COMMONS]`, `[WIKIDATA]`, `[MAIN]`, `[UI]`
-- File naming: lowercase-kebab-case
-- Data attributes: `data-tab`, `data-layer`, `data-mode`
-
-## Common Development Tasks
-
-### Adding a New Tab
-1. Add button in index.html with `data-tab="tab-name"` and `class="tab-button"`
-2. Add content div with `id="tab-name"` and `class="tab"`
-3. Tab switching is handled automatically by event delegation in main.js
-4. Keyboard shortcuts 1-4 are auto-assigned to first four tabs
-
-### Working with Cached Data
-- Get cached data: `await getCached(storeName, key)` (cache.js)
-- Set cached data: `await setCached(storeName, key, value, ttlMs)` (cache.js)
-- Store names: 'wikidata', 'relations', 'commons'
-- Default TTL: 24 hours (86400000ms)
-
-### JSON Workspace Export/Import
-- Export: Creates JSON with images (base64), ROIs, OCR results, and analysis data
-- Import: Fully restores session including images and all detection results
-- Implementation in main.js (exportWorkspaceJSON/importWorkspaceJSON functions)
-
-### Modifying Detection Parameters
-- ROI window sizes: detect.js (currently 15% and 23% of image min dimension)
-- Edge threshold: detect.js (currently 0.15)
-- Score weights: main.js (pHash/color/ORB ratio: 0.5/0.3/0.2)
-- NMS IoU threshold: detect.js (currently 0.3)
-- Image downscale limit: main.js (default 1536px max dimension)
-
-### UI Keyboard Shortcuts
-- `1-4`: Switch between tabs (Justify/Map/Graph/History)
-- `←→`: Navigate between uploaded images
-- Shortcuts are defined in main.js keyboard event handler
-
-### Adding Wikidata Properties
-1. Update SPARQL query in wikidata.js (fetchCompanyBundle or companyRelationsBundle functions)
-2. Add parsing logic for new property in wikidata.js
-3. Wire up visualization in main.js or relevant module (map.js/graph.js)
-4. Consider adding to cache.js stores if caching is needed
-
-## Testing Notes
-
-No automated tests exist. Manual testing checklist:
-- Upload images with clear logos (PNG/JPG)
-- Verify EXIF GPS parsing with geotagged photos (also test images without GPS metadata for fallback)
-- Test with Japanese and English company names
-- Confirm Commons attribution links work
-- Check CSP compliance in browser console
-- Verify map markers appear at correct coordinates
-- Toggle offline mode to verify IndexedDB cache continues serving without errors
-- Export workspace JSON, re-import, and confirm session restores (AI suggestions, tab state, map controls)
+- Commons thumbnails are served from `thumb.wikimedia.org` (as of 2026-10-09). If Wikimedia changes the host again, update both the CSP and `IMAGE_HOSTS` in `commons-core.js`
+- Fixtures in `test/fixtures/` are real API responses captured on 2026-10-09 (Wikidata is CC0)
+- Screenshots are taken by a script outside this repository; the sample board uses public-domain Commons logos and is not committed
