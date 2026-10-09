@@ -1,0 +1,189 @@
+{
+ "capturedAt": "2026-10-09",
+ "companies": [
+  {
+   "qid": "Q26070",
+   "label": "ユニクロ"
+  },
+  {
+   "qid": "Q5512642",
+   "label": "ジーユー"
+  },
+  {
+   "qid": "Q35919",
+   "label": "レクサス"
+  },
+  {
+   "qid": "Q27511",
+   "label": "ダイハツ工業"
+  },
+  {
+   "qid": "Q53268",
+   "label": "トヨタ自動車"
+  }
+ ],
+ "levels": [
+  {
+   "head": {
+    "vars": [
+     "child",
+     "kind",
+     "parent",
+     "parentLabel",
+     "end"
+    ]
+   },
+   "results": {
+    "bindings": [
+     {
+      "child": {
+       "type": "uri",
+       "value": "http://www.wikidata.org/entity/Q26070"
+      },
+      "parent": {
+       "type": "uri",
+       "value": "http://www.wikidata.org/entity/Q3276951"
+      },
+      "kind": {
+       "type": "literal",
+       "value": "owner"
+      },
+      "parentLabel": {
+       "xml:lang": "ja",
+       "type": "literal",
+       "value": "柳井正"
+      }
+     },
+     {
+      "child": {
+       "type": "uri",
+       "value": "http://www.wikidata.org/entity/Q26070"
+      },
+      "parent": {
+       "type": "uri",
+       "value": "http://www.wikidata.org/entity/Q1397688"
+      },
+      "kind": {
+       "type": "literal",
+       "value": "parent"
+      },
+      "parentLabel": {
+       "xml:lang": "ja",
+       "type": "literal",
+       "value": "ファーストリテイリング"
+      }
+     },
+     {
+      "child": {
+       "type": "uri",
+       "value": "http://www.wikidata.org/entity/Q27511"
+      },
+      "parent": {
+       "type": "uri",
+       "value": "http://www.wikidata.org/entity/Q53268"
+      },
+      "kind": {
+       "type": "literal",
+       "value": "parent"
+      },
+      "parentLabel": {
+       "xml:lang": "ja",
+       "type": "literal",
+       "value": "トヨタ自動車"
+      }
+     },
+     {
+      "child": {
+       "type": "uri",
+       "value": "http://www.wikidata.org/entity/Q27511"
+      },
+      "parent": {
+       "type": "uri",
+       "value": "http://www.wikidata.org/entity/Q53268"
+      },
+      "kind": {
+       "type": "literal",
+       "value": "owner"
+      },
+      "parentLabel": {
+       "xml:lang": "ja",
+       "type": "literal",
+       "value": "トヨタ自動車"
+      }
+     },
+     {
+      "child": {
+       "type": "uri",
+       "value": "http://www.wikidata.org/entity/Q35919"
+      },
+      "parent": {
+       "type": "uri",
+       "value": "http://www.wikidata.org/entity/Q53268"
+      },
+      "kind": {
+       "type": "literal",
+       "value": "parent"
+      },
+      "parentLabel": {
+       "xml:lang": "ja",
+       "type": "literal",
+       "value": "トヨタ自動車"
+      }
+     },
+     {
+      "child": {
+       "type": "uri",
+       "value": "http://www.wikidata.org/entity/Q53268"
+      },
+      "parent": {
+       "type": "uri",
+       "value": "http://www.wikidata.org/entity/Q519611"
+      },
+      "kind": {
+       "type": "literal",
+       "value": "owner"
+      },
+      "parentLabel": {
+       "xml:lang": "ja",
+       "type": "literal",
+       "value": "日本生命保険"
+      }
+     },
+     {
+      "child": {
+       "type": "uri",
+       "value": "http://www.wikidata.org/entity/Q5512642"
+      },
+      "parent": {
+       "type": "uri",
+       "value": "http://www.wikidata.org/entity/Q1397688"
+      },
+      "kind": {
+       "type": "literal",
+       "value": "parent"
+      },
+      "parentLabel": {
+       "xml:lang": "ja",
+       "type": "literal",
+       "value": "ファーストリテイリング"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "head": {
+    "vars": [
+     "child",
+     "kind",
+     "parent",
+     "parentLabel",
+     "end"
+    ]
+   },
+   "results": {
+    "bindings": []
+   }
+  }
+ ]
+}

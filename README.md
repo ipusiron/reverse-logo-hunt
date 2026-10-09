@@ -351,6 +351,7 @@ reverse-logo-hunt/
 │   ├── exif-core.js                # EXIFのGPSを緯度・経度にする（計算部）
 │   ├── exif.js                     # ExifReaderで撮影地点を読む
 │   ├── graph.js                    # 関係図（Cytoscape.js）
+│   ├── group-core.js               # 共通の親を見つける（計算部）
 │   ├── logo-match.js               # ロゴの照合：形・明暗の構造・縦横比・色（計算部）
 │   ├── main.js                     # 画面の組み立てと操作
 │   ├── map.js                      # 地図（LeafletとOpenStreetMap）
@@ -365,6 +366,7 @@ reverse-logo-hunt/
 │   └── wikidata.js                 # Wikidataへの問い合わせ（通信とキャッシュ）
 ├── test/                           # node --test のテスト
 │   ├── fixtures/                   # 実際のAPIの応答（2026-10-09、WikidataはCC0）
+│   │   ├── ancestors-group.json    # ユニクロ・ジーユー・レクサス・ダイハツ・トヨタの親と所有者
 │   │   ├── details-nintendo.json   # 「nintendo」の上位8件の詳細（SPARQL）
 │   │   ├── imageinfo-nintendo-sony.json # Commonsのimageinfo（任天堂・ソニーグループ）
 │   │   ├── relations-Q8093.json    # 任天堂の関係（SPARQL）
@@ -375,6 +377,7 @@ reverse-logo-hunt/
 │   ├── contrast.test.js            # 配色のコントラスト比のテスト
 │   ├── exif-core.test.js           # GPSの読み取りのテスト
 │   ├── format.test.js              # 書式（行の長さ・見えない文字）のテスト
+│   ├── group-core.test.js          # 共通の親のテスト
 │   ├── html.test.js                # index.htmlのCSP・SRI・要素のテスト
 │   ├── logo-match.test.js          # ロゴの照合のテスト
 │   ├── ocr-prep.test.js            # OCRの前処理のテスト

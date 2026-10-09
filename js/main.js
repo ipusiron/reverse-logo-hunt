@@ -1,8 +1,9 @@
 // 画面の組み立てと操作（DOM）。計算は *-core.js・logo-match.js・candidate-rank.js などにある
 import { readExifGps } from "./exif.js";
 import { initMap, setHQPoint, setShotPoint, resetMap, refreshMapLayers } from "./map.js";
-import { resetGraph, showRelations, refreshGraph } from "./graph.js";
-import { fetchRelations, HttpError } from "./wikidata.js";
+import { resetGraph, showRelations, showGroup, refreshGraph, onModeChange, getMode } from "./graph.js";
+import { fetchRelations, fetchAncestorLinks, HttpError } from "./wikidata.js";
+import { buildGroup } from "./group-core.js";
 import { findCandidates, imageDataOf, loadImage } from "./analysis.js";
 import { recognize } from "./ocr.js";
 import { brandQueries, normalizeQuery } from "./brand-text.js";
@@ -510,7 +511,7 @@ function renderResult() {
   $("justifyContent").hidden = !logo;
   if (!logo) {
     resetMap();
-    resetGraph();
+    renderGraph();
     return;
   }
   paintRoi(logo.patch);
@@ -545,18 +546,74 @@ function renderResult() {
 let graphToken = 0;
 function renderMapAndGraph(logo, c) {
   resetMap();
-  resetGraph();
   const im = imageOf(logo);
   if (c && c.hq) setHQPoint({ qid: c.qid, label: c.label, place: c.hq.label, coord: c.hq.coord });
   if (im && im.exif) setShotPoint({ ...im.exif, name: im.name });
-  if (!c) return;
+  renderGraph();
+}
+
+// 写真の中で会社を選んだロゴ（重複なし）
+function selectedCompanies() {
+  const out = [];
+  for (const l of state.logos) {
+    const c = selectedCandidate(l);
+    if (c && !out.some((x) => x.qid === c.qid)) out.push({ qid: c.qid, label: c.label });
+  }
+  return out;
+}
+
+function renderGroupSummary(message, shared = [], names = new Map()) {
+  const box = $("groupSummary");
+  box.replaceChildren();
+  box.hidden = getMode() !== "group";
+  if (box.hidden) return;
+  box.appendChild(el("h4", "", t("group.title")));
+  if (message) {
+    box.appendChild(el("p", "small", message));
+    return;
+  }
+  const ul = el("ul", "group-list");
+  for (const s of shared) {
+    const who = s.companies.map((q) => names.get(q) || q).join("・");
+    ul.appendChild(el("li", "", t("group.item", { label: s.label, companies: who, depth: s.depth })));
+  }
+  box.appendChild(ul);
+}
+
+function renderGraph() {
+  resetGraph();
   const token = ++graphToken;
+  if (getMode() === "group") {
+    const companies = selectedCompanies();
+    if (companies.length < 2) {
+      renderGroupSummary(t("group.needTwo"));
+      return;
+    }
+    renderGroupSummary(t("group.loading"));
+    fetchAncestorLinks(companies.map((c) => c.qid), getLang())
+      .then((links) => {
+        if (token !== graphToken) return;
+        const group = buildGroup(companies, links);
+        showGroup(group);
+        const names = new Map(group.nodes.map((n) => [n.qid, n.label]));
+        renderGroupSummary(group.shared.length ? "" : t("group.none"), group.shared, names);
+      })
+      .catch((err) => {
+        if (token === graphToken) renderGroupSummary(errorMessage(err));
+      });
+    return;
+  }
+  renderGroupSummary();
+  const c = selectedCandidate(activeLogo());
+  if (!c) return;
   fetchRelations(c.qid, getLang())
     .then((rel) => {
       if (token === graphToken) showRelations({ qid: c.qid, label: c.label }, rel);
     })
     .catch((err) => log(`${c.label}: ${errorMessage(err)}`));
 }
+
+onModeChange(() => renderGraph());
 
 function selectCandidate(logo, qid) {
   logo.selectedQid = qid;
