@@ -14,7 +14,13 @@ function v3(extra = {}) {
       candidates: [{
         qid: "Q8093", rank: 1, label: "任天堂", description: "", isOrg: true, isBrand: false,
         hq: { qid: "Q34600", label: "京都市", coord: { lat: 35.01, lng: 135.77 } },
-        logo: { file: "Nintendo.svg", thumburl: "https://thumb.wikimedia.org/x.png", descUrl: "https://commons.wikimedia.org/wiki/File:Nintendo.svg", artist: "Nintendo", license: "Public domain" },
+        logo: {
+          file: "Nintendo.svg",
+          thumburl: "https://thumb.wikimedia.org/x.png",
+          descUrl: "https://commons.wikimedia.org/wiki/File:Nintendo.svg",
+          artist: "Nintendo",
+          license: "Public domain",
+        },
         match: { shape: 0.9, structure: 0.8, aspect: 0.95, color: 0.7, total: 0.84 }, combined: 0.93,
       }],
       selectedQid: "Q8093", selectedBy: "user",

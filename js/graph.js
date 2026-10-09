@@ -17,7 +17,6 @@ function ensureCy() {
   cy = cytoscape({
     container: document.getElementById("graph"),
     elements: [],
-
     style: [
       {
         selector: "node",
@@ -132,7 +131,15 @@ function render() {
     const s = styleOf(id);
     cy.add({
       group: "edges",
-      data: { id, source: e.source, target: e.target, label: kinds.map(kindLabel).join("・"), curveStyle: s.curveStyle, distance: [s.distance], weight: [s.weight] },
+      data: {
+        id,
+        source: e.source,
+        target: e.target,
+        label: kinds.map(kindLabel).join("・"),
+        curveStyle: s.curveStyle,
+        distance: [s.distance],
+        weight: [s.weight],
+      },
     });
   }
   runLayout();

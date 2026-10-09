@@ -47,7 +47,10 @@ test("見つからない・配信元が違うページは捨てる", () => {
     query: {
       pages: {
         "-1": { title: "File:Missing.svg", missing: "" },
-        5: { title: "File:Bad.svg", imageinfo: [{ thumburl: "https://evil.example/x.png", descriptionurl: "https://commons.wikimedia.org/wiki/File:Bad.svg" }] },
+        5: {
+          title: "File:Bad.svg",
+          imageinfo: [{ thumburl: "https://evil.example/x.png", descriptionurl: "https://commons.wikimedia.org/wiki/File:Bad.svg" }],
+        },
         6: { title: "File:Ok_1.svg", imageinfo: [{ thumburl: "https://upload.wikimedia.org/x.png", descriptionurl: "javascript:x" }] },
       },
     },

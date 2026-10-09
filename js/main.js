@@ -748,6 +748,7 @@ function applyTheme(theme) {
   themeToggle.setAttribute("aria-pressed", theme === "light" ? "true" : "false");
   themeToggle.querySelector(".theme-icon").textContent = theme === "light" ? "☀️" : "🌙";
   themeToggle.querySelector(".theme-label").textContent = t(theme === "light" ? "theme.light" : "theme.dark");
+  themeToggle.setAttribute("aria-label", t("theme.toggle"));
 }
 applyTheme(getItem("theme") === "light" ? "light" : "dark");
 themeToggle.addEventListener("click", () => {

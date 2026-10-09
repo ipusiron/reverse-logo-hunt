@@ -74,6 +74,7 @@ export const MESSAGES = {
     "score.formula": "総合 = {s}×検索の順位の点 + {k}×種類の点 + {v}×照合の合計（照合なしは {none} とみなす）",
     "theme.light": "ライトモード",
     "theme.dark": "ダークモード",
+    "theme.toggle": "ライトモードとダークモードを切り替える",
     "mark.title": "ロゴ領域を選択: {name}",
     "mark.canvasLabel": "選んだ画像。ドラッグしてロゴを四角で囲みます",
     "mark.howTitle": "操作方法",
