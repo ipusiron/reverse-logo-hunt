@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <!--
-    外部への通信は次だけ（README の「外部との通信」と同じ）:
+    外部への通信は次だけ（READMEの「外部との通信」と同じ）:
       Wikidata（検索・SPARQL）、Wikimedia Commons（ロゴの情報と画像）、OpenStreetMap（地図のタイル）、
-      unpkg / jsDelivr（版を固定したライブラリーと OCR のデータ）。利用者の画像はどこにも送らない。
-    style-src のハッシュは、Cytoscape.js 3.28.1 が起動時に差し込む1行
+      unpkg / jsDelivr（版を固定したライブラリーとOCRのデータ）。利用者の画像はどこにも送らない。
+    style-srcのハッシュは、Cytoscape.js 3.28.1が起動時に差し込む1行
       「.__________cytoscape_container { position: relative; }」だけを許すためのもの。
-    connect-src の data: は、Tesseract.js のコアが中に埋め込んだ WASM を data: URL で読むため（Firefox で必要）。
+    connect-srcのdata: は、Tesseract.jsのコアが中に埋め込んだWASMをdata: URLで読むため（Firefoxで必要）。
   -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
@@ -51,7 +51,7 @@
           crossorigin="anonymous"></script>
 </head>
 <body>
-  <noscript><p class="noscript">このツールは JavaScript を使います。JavaScript を有効にしてください。</p></noscript>
+  <noscript><p class="noscript">このツールはJavaScriptを使います。JavaScriptを有効にしてください。</p></noscript>
   <header>
     <div class="header-content">
       <div class="header-title">
@@ -59,7 +59,7 @@
         <p class="subtitle">画像内ロゴを逆引きして企業マップ化する <strong>ロゴ逆引きOSINTツール</strong></p>
       </div>
       <div class="header-actions">
-        <a href="https://github.com/ipusiron/reverse-logo-hunt" target="_blank" rel="noopener noreferrer" class="header-button github-button" title="GitHubリポジトリー" aria-label="GitHubリポジトリー">
+        <a href="https://github.com/ipusiron/reverse-logo-hunt" target="_blank" rel="noopener noreferrer" class="header-button github-button" title="GitHubリポジトリ" aria-label="GitHubリポジトリ">
           <svg class="github-icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
               0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01
@@ -116,19 +116,19 @@
           <ol class="instructions">
             <li>画像をドラッグ＆ドロップするか、クリックして選ぶ</li>
             <li>開いた画面で、ロゴをドラッグ（指でなぞる）して四角で囲む</li>
-            <li>「選択した領域を解析」を押す（OCR で文字を読み、Wikidata で会社を探す）</li>
+            <li>「選択した領域を解析」を押す（OCRで文字を読み、Wikidataで会社を探す）</li>
             <li>候補の一覧を見比べ、必要なら別の候補を選ぶ・検索語を直す</li>
           </ol>
           <div class="value-proposition">
             <h4>このツールでできること</h4>
             <ul class="advantages">
-              <li>読んだ文字で Wikidata を検索し、候補ごとに Commons の公式ロゴと見比べる（形・明暗・縦横比・色）</li>
+              <li>読んだ文字でWikidataを検索し、候補ごとにCommonsの公式ロゴと見比べる（形・明暗・縦横比・色）</li>
               <li>検索の順位・種類（組織か）・ロゴの照合を足し合わせて仮の1位を出し、最後は人が確定する</li>
               <li>選んだ会社の本社を地図に、親会社・子会社・所有者を関係図に出す</li>
               <li>画像の撮影地点（EXIF）があれば地図に重ねる</li>
             </ul>
           </div>
-          <p class="note">⏱️ 1つのロゴにつき、OCR と検索・照合でおよそ5〜20秒かかります（初回は OCR のデータを読み込むため長めです）。</p>
+          <p class="note">⏱️ 1つのロゴにつき、OCRと検索・照合でおよそ5〜20秒かかります（初回はOCRのデータを読み込むため長めです）。</p>
         </div>
 
         <div id="justifyContent" class="justify-content" hidden>
@@ -146,7 +146,7 @@
 
           <section class="query-box" aria-labelledby="queryHeading">
             <h3 id="queryHeading">検索語</h3>
-            <p class="small"><span>OCR で読めた文字:</span> <span id="ocrText" class="ocr-text"></span></p>
+            <p class="small"><span>OCRで読めた文字:</span> <span id="ocrText" class="ocr-text"></span></p>
             <div id="queryChoicesRow" class="query-choices-row">
               <span class="small">検索語の候補:</span>
               <div id="queryChoices" class="chips"></div>
@@ -207,7 +207,7 @@
             <button id="exportJSON" type="button">JSON書き出し</button>
             <button id="exportPNG" type="button">選択画像にBB焼き込み出力</button>
           </div>
-          <p class="small">JSON には画像・囲んだ領域・候補・選んだ会社が入ります。PNG は選んだ画像に囲みの枠と会社名を描いたものです。</p>
+          <p class="small">JSONには画像・囲んだ領域・候補・選んだ会社が入ります。PNGは選んだ画像に囲みの枠と会社名を描いたものです。</p>
         </div>
       </div>
     </section>
@@ -229,7 +229,7 @@
             <li>ロゴ領域を選ぶ: 開いた画面でドラッグ（指でなぞる）して四角で囲む（複数可）</li>
             <li>解析: 「選択した領域を解析」を押す</li>
             <li>確かめる: 候補の一覧で検索の順位・種類・照合を見比べ、必要なら別の候補を選ぶ</li>
-            <li>保存: JSON書き出し、または枠を描いた PNG を出力</li>
+            <li>保存: JSON書き出し、または枠を描いたPNGを出力</li>
           </ol>
         </section>
         <section class="help-section">
@@ -243,7 +243,7 @@
         <section class="help-section">
           <h3>💡 うまくいかないとき</h3>
           <ul>
-            <li>文字のないロゴ・OCR の読み違い・日本語の看板: 「検索語」の欄に会社名やブランド名を入れて「検索」を押す</li>
+            <li>文字のないロゴ・OCRの読み違い・日本語の看板: 「検索語」の欄に会社名やブランド名を入れて「検索」を押す</li>
             <li>候補の1位が違う: 一覧から正しい候補の「この候補にする」を押す</li>
             <li>地図が表示されない: 地図タブに切り替えて少し待つ</li>
           </ul>
@@ -251,13 +251,13 @@
         <section class="help-section">
           <h3>🔒 プライバシー</h3>
           <ul>
-            <li>画像は外へ送りません。OCR もブラウザーの中で動きます</li>
-            <li>外へ送るのは検索語と、候補の QID・ロゴのファイル名だけです（Wikidata・Commons への問い合わせ）</li>
+            <li>画像は外へ送りません。OCRもブラウザーの中で動きます</li>
+            <li>外へ送るのは検索語と、候補のQID・ロゴのファイル名だけです（Wikidata・Commonsへの問い合わせ）</li>
           </ul>
         </section>
         <section class="help-section">
           <h3>📚 詳細情報</h3>
-          <p>詳しい使い方やソースコードは<a href="https://github.com/ipusiron/reverse-logo-hunt" target="_blank" rel="noopener noreferrer">GitHubリポジトリー</a>をご覧ください。</p>
+          <p>詳しい使い方やソースコードは<a href="https://github.com/ipusiron/reverse-logo-hunt" target="_blank" rel="noopener noreferrer">GitHubリポジトリ</a>をご覧ください。</p>
         </section>
       </div>
     </div>

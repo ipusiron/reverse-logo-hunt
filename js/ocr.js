@@ -28,11 +28,15 @@ function toCanvas(img) {
 }
 
 // patch は canvas。戻り値は { text, words: [{ text, confidence, bbox: { y0, y1 } }], inverted }
-export async function recognize(patch, lang = "eng") {
+// options.invert で明暗の反転を指定できる（省くと地の明るさで決める）
+// options.psm でページの区切り方（Tesseract の page segmentation mode）を変えられる。既定は 3（自動）、11 は「まばらな文字」
+export async function recognize(patch, lang = "eng", options = {}) {
   const ctx = patch.getContext("2d", { willReadFrequently: true });
   const src = ctx.getImageData(0, 0, patch.width, patch.height);
-  const prep = prepareForOcr({ width: src.width, height: src.height, data: src.data });
+  const prep = prepareForOcr({ width: src.width, height: src.height, data: src.data }, options);
   const worker = await getWorker(lang);
+  const psm = String(options.psm || 3);
+  await worker.setParameters({ tessedit_pageseg_mode: psm });
   const { data } = await worker.recognize(toCanvas(prep));
   const words = (data.words || []).map((w) => ({
     text: String(w.text || ""),

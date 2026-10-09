@@ -241,9 +241,9 @@ async function analyzeRois(rois, meta, ui) {
       if (logo.deleted) continue;
       ui.progress(t("progress.ocr"), t("progress.ocrItem", { i: i + 1, n: logos.length }));
       try {
-        const r = await recognize(logo.patch);
+        const { r, queries } = await readText(logo);
         logo.ocrText = r.text;
-        logo.queries = brandQueries(r);
+        logo.queries = queries;
       } catch (err) {
         logo.error = errorMessage(err);
         log(logo.error);
@@ -264,6 +264,38 @@ async function analyzeRois(rois, meta, ui) {
   } catch (err) {
     ui.fail(errorMessage(err));
   }
+}
+
+function cropCanvas(src, box, pad = 4) {
+  const x = Math.max(0, box.x - pad);
+  const y = Math.max(0, box.y - pad);
+  const w = Math.min(src.width - x, box.w + pad * 2);
+  const h = Math.min(src.height - y, box.h + pad * 2);
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  c.getContext("2d", { willReadFrequently: true }).drawImage(src, x, y, w, h, 0, 0, w, h);
+  return c;
+}
+
+// 文字を読み、検索語の候補を作る。1回目で候補が出なければ読み直す
+//   ロゴの字は枠や札に囲まれていることが多く、Tesseract は枠ごと「図」とみなして字を探さないことがある。
+//   読み直しでは、前景の外接矩形（札だけ）に切り詰め、2値にして枠を取り除いてから読む（明暗の向きは2通り試す）。
+async function readText(logo) {
+  const first = await recognize(logo.patch);
+  let queries = brandQueries(first);
+  if (queries.length) return { r: first, queries };
+  if (!logo.desc) logo.desc = describe(imageDataOf(logo.patch));
+  const box = logo.desc.box;
+  const cropped = !box.empty && (box.w < logo.patch.width - 8 || box.h < logo.patch.height - 8);
+  const target = cropped ? cropCanvas(logo.patch, box) : logo.patch;
+  const a = await recognize(target, "eng", { frames: true });
+  queries = brandQueries(a);
+  if (queries.length) return { r: a, queries };
+  const b = await recognize(target, "eng", { frames: true, invert: !a.inverted });
+  queries = brandQueries(b);
+  if (queries.length) return { r: b, queries };
+  return { r: first, queries: [] };
 }
 
 async function runSearch(logo, onStep = () => {}) {
