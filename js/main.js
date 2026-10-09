@@ -382,6 +382,8 @@ function renderCredit(c) {
     return;
   }
   thumb.hidden = false;
+  thumb.crossOrigin = "anonymous";
+  thumb.referrerPolicy = "no-referrer";
   thumb.src = c.logo.thumburl;
   thumb.alt = t("cand.logoAlt", { label: c.label });
   meta.append(t("credit.line", { artist: c.logo.artist || t("credit.unknown"), license: c.logo.license || t("credit.unknown") }));
@@ -430,6 +432,8 @@ function candidateCard(logo, c, index) {
   const thumbBox = el("div", "candidate-thumb");
   if (c.logo && isAllowedImageUrl(c.logo.thumburl)) {
     const img = document.createElement("img");
+    // 照合で読んだときと同じ取り方（CORS・Referer なし）にして、ブラウザーのキャッシュを使い回す
+    img.crossOrigin = "anonymous";
     img.src = c.logo.thumburl;
     img.alt = t("cand.logoAlt", { label: c.label });
     img.loading = "lazy";

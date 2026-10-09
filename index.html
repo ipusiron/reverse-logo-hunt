@@ -2,12 +2,32 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.wikidata.org https://query.wikidata.org https://commons.wikimedia.org data: blob:; img-src 'self' data: blob: https://thumb.wikimedia.org https://upload.wikimedia.org https://commons.wikimedia.org https://tile.openstreetmap.org; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; script-src 'self' 'wasm-unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; worker-src 'self' blob:; connect-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://www.wikidata.org https://query.wikidata.org https://commons.wikimedia.org https://thumb.wikimedia.org https://upload.wikimedia.org https://storage.googleapis.com data:;"/>
+  <!--
+    外部への通信は次だけ（README の「外部との通信」と同じ）:
+      Wikidata（検索・SPARQL）、Wikimedia Commons（ロゴの情報と画像）、OpenStreetMap（地図のタイル）、
+      unpkg / jsDelivr（版を固定したライブラリーと OCR のデータ）。利用者の画像はどこにも送らない。
+    style-src のハッシュは、Cytoscape.js 3.28.1 が起動時に差し込む1行
+      「.__________cytoscape_container { position: relative; }」だけを許すためのもの。
+    connect-src の data: は、Tesseract.js のコアが中に埋め込んだ WASM を data: URL で読むため（Firefox で必要）。
+  -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'wasm-unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net;
+    style-src 'self' https://unpkg.com 'sha256-pgvDUBa4IjFA2yuSJ2cqcyxmNYJMborsd0ORcRv9vw8=';
+    img-src 'self' data: blob: https://thumb.wikimedia.org https://upload.wikimedia.org https://tile.openstreetmap.org;
+    font-src 'self';
+    connect-src 'self' data: https://www.wikidata.org https://query.wikidata.org https://commons.wikimedia.org https://cdn.jsdelivr.net;
+    worker-src 'self' blob:;
+    object-src 'none';
+    base-uri 'none';
+    form-action 'none'" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Reverse Logo Hunt</title>
+  <link rel="icon" href="data:," />
   <link rel="stylesheet" href="style.css" />
 
-  <!-- Leaflet -->
+  <!-- Leaflet 1.9.4（地図） -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
         crossorigin="anonymous" />
@@ -15,19 +35,23 @@
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
           crossorigin="anonymous"></script>
 
-  <!-- Cytoscape -->
+  <!-- Cytoscape.js 3.28.1（関係図） -->
   <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"
+          integrity="sha384-J7Q85oZE4GJ/e7+n2aOQsLXfDwwfnA8S2nZAL5BpFsfpCF84zQD7LroZ/dMnLgex"
           crossorigin="anonymous"></script>
 
-  <!-- Tesseract.js (WASM) -->
+  <!-- Tesseract.js 5.0.5（OCR。WASM） -->
   <script src="https://unpkg.com/tesseract.js@5.0.5/dist/tesseract.min.js"
+          integrity="sha384-sZlPHqJ8Pk1GMyFXfg9vOgDjyUZZe7wE2c0NoPg2z1vs2fmI4wOC0O1ONVyr73qa"
           crossorigin="anonymous"></script>
 
-  <!-- exifreader -->
+  <!-- ExifReader 4.23.5（撮影地点） -->
   <script src="https://cdn.jsdelivr.net/npm/exifreader@4.23.5/dist/exif-reader.js"
+          integrity="sha384-lV3Kc4L1YkqB4DCasecdSWo5RQEXp9Mc9eeiV6opSzVKpk2Id2jELgNodSyTCDqq"
           crossorigin="anonymous"></script>
 </head>
 <body>
+  <noscript><p class="noscript">このツールは JavaScript を使います。JavaScript を有効にしてください。</p></noscript>
   <header>
     <div class="header-content">
       <div class="header-title">

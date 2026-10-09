@@ -204,7 +204,7 @@ button:disabled{opacity:.6;cursor:not-allowed;transform:none}
 .map-layer-control input{accent-color:var(--accent)}
 [data-theme="light"] .map-layer-control{background:rgba(255,255,255,0.95);box-shadow:0 2px 8px rgba(0,145,199,0.2)}
 [data-theme="light"] .map-layer-control label{color:#465870}
-.graph{height:520px;border:1px solid var(--border);border-radius:12px;background:var(--panel)}
+.graph{position:relative;height:520px;border:1px solid var(--border);border-radius:12px;background:var(--panel)}
 .history{display:flex;flex-direction:column;gap:10px}
 #historyList{max-height:360px;overflow:auto;border:1px solid var(--border);border-radius:10px;padding:8px;background:var(--panel)}
 .export{display:flex;gap:8px}
