@@ -275,6 +275,74 @@ h2 .help-icon,h3 .help-icon{font-size:10px;width:14px;height:14px;line-height:14
 .marking-instructions li{margin-bottom:6px}
 .selected-rois-container h4{margin:0 0 12px 0;font-size:14px;color:var(--accent)}
 .modal-selected-rois{display:flex;flex-direction:column;gap:8px}
+/* ---- 第1弾で足した部品 ---- */
+[hidden]{display:none !important}
+.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.panel h2{margin:4px 0 6px;font-size:20px}
+.panel-note{margin:0 0 10px;font-size:13px;line-height:1.6;color:var(--muted)}
+.dropzone{display:block;cursor:pointer}
+.dropzone span{display:block;font-size:14px}
+.image-list,.marked-logos,.history-list,.candidate-list,.modal-selected-rois{list-style:none;margin:0;padding:0}
+.image-list{margin-top:12px}
+.image-item{padding:0}
+.image-item-open,.marked-logo-open{flex:1;min-width:0;display:flex;gap:10px;align-items:center;text-align:left;background:none;border:none;
+  color:inherit;padding:8px;min-height:44px;border-radius:8px;box-shadow:none}
+.image-item-open:hover,.marked-logo-open:hover{transform:none;box-shadow:none}
+.image-item-open canvas{width:64px;height:64px;border-radius:8px;border:1px solid var(--border);flex-shrink:0}
+.image-item-info,.marked-logo-info{display:flex;flex-direction:column;gap:2px;min-width:0;overflow-wrap:anywhere}
+.image-item .remove-image-btn,.marked-logo-item .remove-marked-logo{position:static;opacity:1;flex-shrink:0;width:44px;height:44px;margin:0 6px 0 0}
+.marked-logo-item{padding:0;align-items:center}
+.marked-logo-text{font-weight:600}
+.marked-logo-status{margin-left:auto;font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--border);white-space:nowrap}
+.status-done .marked-logo-status{border-color:var(--accent-3)}
+.status-error .marked-logo-status,.status-nohit .marked-logo-status,.status-noquery .marked-logo-status{border-color:var(--accent-2)}
+.marked-empty,.history-empty{color:var(--muted);padding:16px;text-align:center}
+.roi-figure,.commons-figure{margin:0}
+.roi-figure canvas{max-width:100%;height:auto;border:1px solid var(--border);border-radius:8px}
+#commonsThumb{background:#ffffff;padding:8px}
+.query-box{border-top:1px dashed var(--border);padding-top:10px}
+.query-box h3,.candidates h3,.justify-bottom h3{margin:0 0 8px;font-size:16px}
+.ocr-text{white-space:pre-wrap;overflow-wrap:anywhere;font-family:ui-monospace,Consolas,monospace}
+.query-choices-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:6px 0}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:36px;padding:4px 12px;border-radius:999px;font-size:13px}
+.chip[aria-pressed="true"]{border-width:2px;font-weight:700}
+.query-form{display:flex;gap:8px;margin-top:8px}
+.query-form input{flex:1;min-width:0;min-height:44px;font-size:16px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);
+  background:var(--bg);color:var(--text)}
+.query-form button{min-height:44px}
+.result-message{min-height:1.2em;margin:8px 0 0;font-size:14px}
+.close-call{margin:0 0 8px;padding:8px 10px;border-left:3px solid var(--accent-2);background:rgba(255,42,109,0.08);font-size:14px}
+.candidate-list{display:grid;gap:10px}
+.candidate{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px;border:1px solid var(--border);
+  border-radius:10px;background:var(--panel)}
+.candidate.selected{border:2px solid var(--accent);box-shadow:var(--glow-cyan)}
+.candidate-thumb{display:flex;align-items:center;justify-content:center;min-height:56px;background:#ffffff;border-radius:6px;padding:4px}
+.candidate-thumb img{max-width:100%;max-height:64px;object-fit:contain}
+.candidate-nologo{font-size:12px;color:#3d4a5c;text-align:center}
+.candidate-head{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline}
+.candidate-qid,.candidate-place{font-size:12px;color:var(--muted)}
+.candidate-desc{margin:4px 0;font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.candidate-tags{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
+.tag{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--border)}
+.candidate-scores{display:flex;flex-wrap:wrap;gap:12px;font-size:13px}
+.candidate-action button{min-height:44px}
+.candidate-selected{font-size:13px;font-weight:700;color:var(--accent)}
+.score-table th{text-align:left;font-weight:600}
+.marking-modal-content{position:relative}
+.modal-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,14,39,0.86);border-radius:16px;z-index:5}
+.marking-status{min-height:1.2em;margin:0;font-size:13px}
+.marking-controls{flex-wrap:wrap}
+.marking-controls button{min-height:44px}
+.modal-selected-rois{display:flex;flex-direction:column;gap:8px}
+.marking-canvas-wrapper canvas{touch-action:none}
+.history-list{max-height:360px;overflow:auto;border:1px solid var(--border);border-radius:10px;padding:8px;background:var(--panel)}
+.history-item{display:flex;flex-direction:column;gap:2px;padding:8px;border-bottom:1px solid var(--border)}
+.history-date,.history-images{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.export{flex-wrap:wrap}
+.export button{min-height:44px}
+.graph-control-hint{margin:0;width:100%;font-size:12px;color:var(--muted)}
+.edge-adjust-field output{min-width:40px;text-align:right;font-size:13px;color:var(--accent);font-weight:700}
 /* Tablet landscape */
 @media (max-width:1200px){
   main{grid-template-columns:420px 1fr}
