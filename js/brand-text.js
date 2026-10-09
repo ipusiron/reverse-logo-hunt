@@ -15,12 +15,14 @@ export function hasCJK(s) {
 
 // 商標の記号（™ ® © ℠）を空白にし、全角を半角へそろえ、文字・数字と & ' . - 以外を空白にする
 // 記号を先に外すのは、NFKC が ™ を「TM」に変えて前の語にくっつけるため（Cola™ → ColaTM）
+// 日本語の字どうしの間の空白はつなぐ（Tesseract の日本語は「任 天 堂」のように1字ずつ区切ることがある）
 export function cleanText(s) {
   return String(s || "")
     .replace(/[™®©℠]/gu, " ")
     .normalize("NFKC")
     .replace(/[^\p{L}\p{N}&'.\- ]+/gu, " ")
     .replace(/\s+/g, " ")
+    .replace(/(?<=[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー]) (?=[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー])/gu, "")
     .trim();
 }
 

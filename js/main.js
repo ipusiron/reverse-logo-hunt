@@ -211,12 +211,12 @@ function showMarking(meta) {
       const d = canvasEl.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, canvasEl.width, canvasEl.height);
       return suggestRois({ width: d.width, height: d.height, data: d.data });
     },
-    onAnalyze: (rois, ui) => analyzeRois(rois, meta, ui),
+    onAnalyze: (rois, ui, options) => analyzeRois(rois, meta, ui, options),
   });
 }
 
 // ---- 解析 ----
-async function analyzeRois(rois, meta, ui) {
+async function analyzeRois(rois, meta, ui, { lang = "eng" } = {}) {
   const logos = rois.map((r) => ({
     id: nextId("logo"),
     imageId: meta.id,
@@ -243,7 +243,7 @@ async function analyzeRois(rois, meta, ui) {
       if (logo.deleted) continue;
       ui.progress(t("progress.ocr"), t("progress.ocrItem", { i: i + 1, n: logos.length }));
       try {
-        const { r, queries } = await readText(logo);
+        const { r, queries } = await readText(logo, lang);
         logo.ocrText = r.text;
         logo.queries = queries;
       } catch (err) {
@@ -283,18 +283,18 @@ function cropCanvas(src, box, pad = 4) {
 // 文字を読み、検索語の候補を作る。1回目で候補が出なければ読み直す
 //   ロゴの字は枠や札に囲まれていることが多く、Tesseract は枠ごと「図」とみなして字を探さないことがある。
 //   読み直しでは、前景の外接矩形（札だけ）に切り詰め、2値にして枠を取り除いてから読む（明暗の向きは2通り試す）。
-async function readText(logo) {
-  const first = await recognize(logo.patch);
+async function readText(logo, lang = "eng") {
+  const first = await recognize(logo.patch, lang);
   let queries = brandQueries(first);
   if (queries.length) return { r: first, queries };
   if (!logo.desc) logo.desc = describe(imageDataOf(logo.patch));
   const box = logo.desc.box;
   const cropped = !box.empty && (box.w < logo.patch.width - 8 || box.h < logo.patch.height - 8);
   const target = cropped ? cropCanvas(logo.patch, box) : logo.patch;
-  const a = await recognize(target, "eng", { frames: true });
+  const a = await recognize(target, lang, { frames: true });
   queries = brandQueries(a);
   if (queries.length) return { r: a, queries };
-  const b = await recognize(target, "eng", { frames: true, invert: !a.inverted });
+  const b = await recognize(target, lang, { frames: true, invert: !a.inverted });
   queries = brandQueries(b);
   if (queries.length) return { r: b, queries };
   return { r: first, queries: [] };
