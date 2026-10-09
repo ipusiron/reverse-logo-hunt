@@ -1,0 +1,233 @@
+{
+ "searchinfo": {
+  "search": "nintendo"
+ },
+ "search": [
+  {
+   "id": "Q8093",
+   "title": "Q8093",
+   "pageid": 9373,
+   "concepturi": "http://www.wikidata.org/entity/Q8093",
+   "repository": "wikidata",
+   "url": "//www.wikidata.org/wiki/Q8093",
+   "display": {
+    "label": {
+     "value": "任天堂",
+     "language": "ja"
+    },
+    "description": {
+     "value": "主にコンピュータゲーム等のレジャーコンテンツを事業とする日系グローバル企業",
+     "language": "ja"
+    }
+   },
+   "label": "任天堂",
+   "description": "主にコンピュータゲーム等のレジャーコンテンツを事業とする日系グローバル企業",
+   "match": {
+    "type": "label",
+    "language": "en",
+    "text": "Nintendo"
+   },
+   "aliases": [
+    "Nintendo"
+   ]
+  },
+  {
+   "id": "Q172742",
+   "title": "Q172742",
+   "pageid": 172824,
+   "concepturi": "http://www.wikidata.org/entity/Q172742",
+   "repository": "wikidata",
+   "url": "//www.wikidata.org/wiki/Q172742",
+   "display": {
+    "label": {
+     "value": "ファミリーコンピュータ",
+     "language": "ja"
+    },
+    "description": {
+     "value": "任天堂の家庭用ゲーム機",
+     "language": "ja"
+    }
+   },
+   "label": "ファミリーコンピュータ",
+   "description": "任天堂の家庭用ゲーム機",
+   "match": {
+    "type": "label",
+    "language": "en",
+    "text": "Nintendo Entertainment System"
+   },
+   "aliases": [
+    "Nintendo Entertainment System"
+   ]
+  },
+  {
+   "id": "Q8079",
+   "title": "Q8079",
+   "pageid": 9359,
+   "concepturi": "http://www.wikidata.org/entity/Q8079",
+   "repository": "wikidata",
+   "url": "//www.wikidata.org/wiki/Q8079",
+   "display": {
+    "label": {
+     "value": "Wii",
+     "language": "ja"
+    },
+    "description": {
+     "value": "かつて任天堂が製造販売した家庭用ゲーム機",
+     "language": "ja"
+    }
+   },
+   "label": "Wii",
+   "description": "かつて任天堂が製造販売した家庭用ゲーム機",
+   "match": {
+    "type": "alias",
+    "language": "en",
+    "text": "Nintendo Wii"
+   },
+   "aliases": [
+    "Nintendo Wii"
+   ]
+  },
+  {
+   "id": "Q170323",
+   "title": "Q170323",
+   "pageid": 170627,
+   "concepturi": "http://www.wikidata.org/entity/Q170323",
+   "repository": "wikidata",
+   "url": "//www.wikidata.org/wiki/Q170323",
+   "display": {
+    "label": {
+     "value": "ニンテンドーDS",
+     "language": "ja"
+    },
+    "description": {
+     "value": "任天堂の携帯型ゲーム機",
+     "language": "ja"
+    }
+   },
+   "label": "ニンテンドーDS",
+   "description": "任天堂の携帯型ゲーム機",
+   "match": {
+    "type": "label",
+    "language": "en",
+    "text": "Nintendo DS"
+   },
+   "aliases": [
+    "Nintendo DS"
+   ]
+  },
+  {
+   "id": "Q58379130",
+   "title": "Q58379130",
+   "pageid": 58293256,
+   "concepturi": "http://www.wikidata.org/entity/Q58379130",
+   "repository": "wikidata",
+   "url": "//www.wikidata.org/wiki/Q58379130",
+   "display": {
+    "label": {
+     "value": "ニンテンドー・ゲーム・ストア",
+     "language": "ja"
+    },
+    "description": {
+     "value": "digital media store",
+     "language": "en"
+    }
+   },
+   "label": "ニンテンドー・ゲーム・ストア",
+   "description": "digital media store",
+   "match": {
+    "type": "label",
+    "language": "en",
+    "text": "Nintendo Game Store"
+   },
+   "aliases": [
+    "Nintendo Game Store"
+   ]
+  },
+  {
+   "id": "Q203597",
+   "title": "Q203597",
+   "pageid": 200055,
+   "concepturi": "http://www.wikidata.org/entity/Q203597",
+   "repository": "wikidata",
+   "url": "//www.wikidata.org/wiki/Q203597",
+   "display": {
+    "label": {
+     "value": "ニンテンドー3DS",
+     "language": "ja"
+    },
+    "description": {
+     "value": "携帯型ゲーム機",
+     "language": "ja"
+    }
+   },
+   "label": "ニンテンドー3DS",
+   "description": "携帯型ゲーム機",
+   "match": {
+    "type": "label",
+    "language": "en",
+    "text": "Nintendo 3DS"
+   },
+   "aliases": [
+    "Nintendo 3DS"
+   ]
+  },
+  {
+   "id": "Q56942",
+   "title": "Q56942",
+   "pageid": 59811,
+   "concepturi": "http://www.wikidata.org/entity/Q56942",
+   "repository": "wikidata",
+   "url": "//www.wikidata.org/wiki/Q56942",
+   "display": {
+    "label": {
+     "value": "Wii U",
+     "language": "ja"
+    },
+    "description": {
+     "value": "かつて任天堂が製造販売した家庭用ゲーム機",
+     "language": "ja"
+    }
+   },
+   "label": "Wii U",
+   "description": "かつて任天堂が製造販売した家庭用ゲーム機",
+   "match": {
+    "type": "alias",
+    "language": "en",
+    "text": "Nintendo Wii U"
+   },
+   "aliases": [
+    "Nintendo Wii U"
+   ]
+  },
+  {
+   "id": "Q182172",
+   "title": "Q182172",
+   "pageid": 181295,
+   "concepturi": "http://www.wikidata.org/entity/Q182172",
+   "repository": "wikidata",
+   "url": "//www.wikidata.org/wiki/Q182172",
+   "display": {
+    "label": {
+     "value": "ニンテンドーゲームキューブ",
+     "language": "ja"
+    },
+    "description": {
+     "value": "かつて任天堂が製造販売した家庭用ゲーム機",
+     "language": "ja"
+    }
+   },
+   "label": "ニンテンドーゲームキューブ",
+   "description": "かつて任天堂が製造販売した家庭用ゲーム機",
+   "match": {
+    "type": "label",
+    "language": "en",
+    "text": "Nintendo GameCube"
+   },
+   "aliases": [
+    "Nintendo GameCube"
+   ]
+  }
+ ],
+ "search-continue": 8,
+ "success": 1
+}
