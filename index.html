@@ -51,15 +51,16 @@
           crossorigin="anonymous"></script>
 </head>
 <body>
-  <noscript><p class="noscript">このツールはJavaScriptを使います。JavaScriptを有効にしてください。</p></noscript>
+  <noscript><p class="noscript">このツールはJavaScriptを使います。JavaScriptを有効にしてください。 / This tool needs JavaScript. Please enable it.</p></noscript>
   <header>
     <div class="header-content">
       <div class="header-title">
         <h1>⚡ REVERSE LOGO HUNT</h1>
-        <p class="subtitle">画像内ロゴを逆引きして企業マップ化する <strong>ロゴ逆引きOSINTツール</strong></p>
+        <p class="subtitle"><span data-i18n="ui.subtitle1">画像内ロゴを逆引きして企業マップ化する</span> <strong data-i18n="ui.subtitle2">ロゴ逆引きOSINTツール</strong></p>
       </div>
       <div class="header-actions">
-        <a href="https://github.com/ipusiron/reverse-logo-hunt" target="_blank" rel="noopener noreferrer" class="header-button github-button" title="GitHubリポジトリ" aria-label="GitHubリポジトリ">
+        <a href="https://github.com/ipusiron/reverse-logo-hunt" target="_blank" rel="noopener noreferrer" class="header-button github-button"
+           title="GitHubリポジトリ" aria-label="GitHubリポジトリ" data-i18n-attr="title:ui.github;aria-label:ui.github">
           <svg class="github-icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
               0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01
@@ -70,9 +71,13 @@
           </svg>
           <span class="button-label">GitHub</span>
         </a>
-        <button id="helpButton" type="button" class="header-button help-button" aria-label="ヘルプ">
+        <button id="langToggle" type="button" class="header-button lang-toggle" aria-label="表示の言語を英語にする" data-i18n-attr="aria-label:ui.lang.aria">
+          <span class="lang-icon" aria-hidden="true">🌐</span>
+          <span class="button-label" data-i18n="ui.lang.button">English</span>
+        </button>
+        <button id="helpButton" type="button" class="header-button help-button" aria-label="ヘルプ" data-i18n-attr="aria-label:ui.help">
           <span class="help-icon-text" aria-hidden="true">❓</span>
-          <span class="button-label">ヘルプ</span>
+          <span class="button-label" data-i18n="ui.help">ヘルプ</span>
         </button>
         <button id="themeToggle" type="button" class="header-button theme-toggle" aria-pressed="false" aria-label="ライトモードとダークモードを切り替える">
           <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -83,92 +88,96 @@
   </header>
 
   <main>
-    <section id="left" aria-label="画像とロゴ">
+    <section id="left" aria-label="画像とロゴ" data-i18n-attr="aria-label:ui.left">
       <div class="panel">
-        <h2>画像アップロード</h2>
-        <p class="panel-note">ロゴが写った画像を選びます。複数枚まとめて選べます。画像はブラウザーの中だけで処理し、外へ送りません。</p>
+        <h2 data-i18n="ui.upload.title">画像アップロード</h2>
+        <p class="panel-note" data-i18n="ui.upload.note">ロゴが写った画像を選びます。複数枚まとめて選べます。画像はブラウザーの中だけで処理し、外へ送りません。</p>
         <label id="dropzone" class="dropzone" for="fileInput">
           <input id="fileInput" type="file" accept="image/*" multiple />
-          <span>ここに画像をドラッグ＆ドロップ、またはクリックして選択</span>
+          <span data-i18n="ui.upload.drop">ここに画像をドラッグ＆ドロップ、またはクリックして選択</span>
         </label>
-        <ul id="imageList" class="image-list" aria-label="読み込んだ画像"></ul>
+        <ul id="imageList" class="image-list" aria-label="読み込んだ画像" data-i18n-attr="aria-label:ui.upload.list"></ul>
       </div>
 
       <div class="panel">
-        <h2>マーク済みロゴ一覧</h2>
-        <p class="panel-note">囲んだ領域ごとに、選ばれている会社（または検索語）と状態を出します。押すと右の「根拠・照合」に詳細が出ます。</p>
-        <ul id="markedLogos" class="marked-logos" aria-label="マーク済みロゴ"></ul>
+        <h2 data-i18n="ui.marked.title">マーク済みロゴ一覧</h2>
+        <p class="panel-note" data-i18n="ui.marked.note">囲んだ領域ごとに、選ばれている会社（または検索語）と状態を出します。押すと右の「根拠・照合」に詳細が出ます。</p>
+        <ul id="markedLogos" class="marked-logos" aria-label="マーク済みロゴ" data-i18n-attr="aria-label:ui.marked.list"></ul>
       </div>
     </section>
 
-    <section id="right" aria-label="結果">
-      <div class="tabs" role="tablist" aria-label="結果の表示">
-        <button type="button" class="tab-button active" role="tab" id="tab-btn-1" data-tab="tab-justify" aria-controls="tab-justify" aria-selected="true">根拠・照合</button>
-        <button type="button" class="tab-button" role="tab" id="tab-btn-2" data-tab="tab-map" aria-controls="tab-map" aria-selected="false">企業情報（地図）</button>
-        <button type="button" class="tab-button" role="tab" id="tab-btn-3" data-tab="tab-graph" aria-controls="tab-graph" aria-selected="false">関係図</button>
-        <button type="button" class="tab-button" role="tab" id="tab-btn-4" data-tab="tab-history" aria-controls="tab-history" aria-selected="false">履歴・エクスポート</button>
+    <section id="right" aria-label="結果" data-i18n-attr="aria-label:ui.right">
+      <div class="tabs" role="tablist" aria-label="結果の表示" data-i18n-attr="aria-label:ui.tabs">
+        <button type="button" class="tab-button active" role="tab" id="tab-btn-1" data-tab="tab-justify" aria-controls="tab-justify" aria-selected="true"
+                data-i18n="ui.tab.justify">根拠・照合</button>
+        <button type="button" class="tab-button" role="tab" id="tab-btn-2" data-tab="tab-map" aria-controls="tab-map" aria-selected="false"
+                data-i18n="ui.tab.map">企業情報（地図）</button>
+        <button type="button" class="tab-button" role="tab" id="tab-btn-3" data-tab="tab-graph" aria-controls="tab-graph" aria-selected="false"
+                data-i18n="ui.tab.graph">関係図</button>
+        <button type="button" class="tab-button" role="tab" id="tab-btn-4" data-tab="tab-history" aria-controls="tab-history" aria-selected="false"
+                data-i18n="ui.tab.history">履歴・エクスポート</button>
       </div>
 
       <div id="tab-justify" class="tab active" role="tabpanel" aria-labelledby="tab-btn-1" tabindex="0">
         <div id="emptyState" class="empty-state">
-          <h3>🔍 ロゴ検出を開始</h3>
-          <p>左のパネルから画像を読み込むと、ロゴを囲む画面が開きます。</p>
+          <h3 data-i18n="ui.empty.title">🔍 ロゴ検出を開始</h3>
+          <p data-i18n="ui.empty.lead">左のパネルから画像を読み込むと、ロゴを囲む画面が開きます。</p>
           <ol class="instructions">
-            <li>画像をドラッグ＆ドロップするか、クリックして選ぶ</li>
-            <li>開いた画面で、ロゴをドラッグ（指でなぞる）して四角で囲む</li>
-            <li>「選択した領域を解析」を押す（OCRで文字を読み、Wikidataで会社を探す）</li>
-            <li>候補の一覧を見比べ、必要なら別の候補を選ぶ・検索語を直す</li>
+            <li data-i18n="ui.empty.step1">画像をドラッグ＆ドロップするか、クリックして選ぶ</li>
+            <li data-i18n="ui.empty.step2">開いた画面で、ロゴをドラッグ（指でなぞる）して四角で囲む</li>
+            <li data-i18n="ui.empty.step3">「選択した領域を解析」を押す（OCRで文字を読み、Wikidataで会社を探す）</li>
+            <li data-i18n="ui.empty.step4">候補の一覧を見比べ、必要なら別の候補を選ぶ・検索語を直す</li>
           </ol>
           <div class="value-proposition">
-            <h4>このツールでできること</h4>
+            <h4 data-i18n="ui.empty.canTitle">このツールでできること</h4>
             <ul class="advantages">
-              <li>読んだ文字でWikidataを検索し、候補ごとにCommonsの公式ロゴと見比べる（形・明暗・縦横比・色）</li>
-              <li>検索の順位・種類（組織か）・ロゴの照合を足し合わせて仮の1位を出し、最後は人が確定する</li>
-              <li>選んだ会社の本社を地図に、親会社・子会社・所有者を関係図に出す</li>
-              <li>画像の撮影地点（EXIF）があれば地図に重ねる</li>
+              <li data-i18n="ui.empty.can1">読んだ文字でWikidataを検索し、候補ごとにCommonsの公式ロゴと見比べる（形・明暗・縦横比・色）</li>
+              <li data-i18n="ui.empty.can2">検索の順位・種類（組織か）・ロゴの照合を足し合わせて仮の1位を出し、最後は人が確定する</li>
+              <li data-i18n="ui.empty.can3">選んだ会社の本社を地図に、親会社・子会社・所有者を関係図に出す。写真の全社の共通の親も出せる</li>
+              <li data-i18n="ui.empty.can4">画像の撮影地点（EXIF）があれば地図に重ね、各社の本社までの距離と方角を出す</li>
             </ul>
           </div>
-          <p class="note">⏱️ 1つのロゴにつき、OCRと検索・照合でおよそ5〜20秒かかります（初回はOCRのデータを読み込むため長めです）。</p>
+          <p class="note" data-i18n="ui.empty.time">⏱️ 1つのロゴにつき、OCRと検索・照合でおよそ5〜20秒かかります（初回はOCRのデータを読み込むため長めです）。</p>
         </div>
 
         <div id="justifyContent" class="justify-content" hidden>
           <div class="justify-top">
             <figure class="roi-figure">
-              <figcaption><h3>囲んだ領域</h3></figcaption>
-              <canvas id="roiCanvas" width="320" height="200" aria-label="囲んだ領域の拡大"></canvas>
+              <figcaption><h3 data-i18n="ui.roi.title">囲んだ領域</h3></figcaption>
+              <canvas id="roiCanvas" width="320" height="200" aria-label="囲んだ領域の拡大" data-i18n-attr="aria-label:ui.roi.aria"></canvas>
             </figure>
             <figure class="commons-figure">
-              <figcaption><h3>選んだ候補のロゴ（Commons）</h3></figcaption>
+              <figcaption><h3 data-i18n="ui.commons.title">選んだ候補のロゴ（Commons）</h3></figcaption>
               <img id="commonsThumb" alt="" hidden />
               <p id="commonsMeta" class="meta small"></p>
             </figure>
           </div>
 
           <section class="query-box" aria-labelledby="queryHeading">
-            <h3 id="queryHeading">検索語</h3>
-            <p class="small"><span>OCRで読めた文字:</span> <span id="ocrText" class="ocr-text"></span></p>
+            <h3 id="queryHeading" data-i18n="ui.query.title">検索語</h3>
+            <p class="small"><span data-i18n="ui.query.ocr">OCRで読めた文字:</span> <span id="ocrText" class="ocr-text"></span></p>
             <div id="queryChoicesRow" class="query-choices-row">
-              <span class="small">検索語の候補:</span>
+              <span class="small" data-i18n="ui.query.choices">検索語の候補:</span>
               <div id="queryChoices" class="chips"></div>
             </div>
             <form id="queryForm" class="query-form">
-              <label for="queryInput" class="visually-hidden">検索語</label>
+              <label for="queryInput" class="visually-hidden" data-i18n="ui.query.title">検索語</label>
               <input id="queryInput" type="search" maxlength="80" autocomplete="off" spellcheck="false" />
-              <button id="searchButton" type="submit" class="primary">検索</button>
+              <button id="searchButton" type="submit" class="primary" data-i18n="ui.query.button">検索</button>
             </form>
             <p id="resultMessage" class="result-message" role="status"></p>
           </section>
 
           <section id="candidateSection" class="candidates" aria-labelledby="candHeading">
-            <h3 id="candHeading">候補</h3>
-            <p id="closeCallNote" class="close-call" hidden>1位と2位の差が小さいので、ロゴと説明を見比べて確かめてください。</p>
+            <h3 id="candHeading" data-i18n="ui.cand.title">候補</h3>
+            <p id="closeCallNote" class="close-call" hidden data-i18n="result.closeCall">1位と2位の差が小さいので、ロゴと説明を見比べて確かめてください。</p>
             <ol id="candidateList" class="candidate-list"></ol>
           </section>
 
           <section class="justify-bottom" aria-labelledby="scoreHeading">
-            <h3 id="scoreHeading">選んだ候補の点数の内訳</h3>
+            <h3 id="scoreHeading" data-i18n="ui.score.title">選んだ候補の点数の内訳</h3>
             <table class="score-table">
-              <thead><tr><th scope="col">指標</th><th scope="col">値</th></tr></thead>
+              <thead><tr><th scope="col" data-i18n="ui.score.metric">指標</th><th scope="col" data-i18n="ui.score.value">値</th></tr></thead>
               <tbody id="scoreBody"></tbody>
             </table>
             <p id="scoreFormula" class="small"></p>
@@ -178,39 +187,39 @@
       </div>
 
       <div id="tab-map" class="tab" role="tabpanel" aria-labelledby="tab-btn-2" tabindex="0" hidden>
-        <h3>企業情報（地図）</h3>
+        <h3 data-i18n="ui.tab.map">企業情報（地図）</h3>
         <div id="map" class="map"></div>
         <div id="mapLegend" class="legend">
-          <span class="dot hq" aria-hidden="true"></span> 本社
-          <span class="dot shot" aria-hidden="true"></span> 撮影地点（EXIF）
-          <span class="line-key" aria-hidden="true"></span> 撮影地点から本社
+          <span class="dot hq" aria-hidden="true"></span> <span data-i18n="ui.legend.hq">本社</span>
+          <span class="dot shot" aria-hidden="true"></span> <span data-i18n="ui.legend.shot">撮影地点（EXIF）</span>
+          <span class="line-key" aria-hidden="true"></span> <span data-i18n="ui.legend.line">撮影地点から本社</span>
         </div>
         <section id="distanceBox" class="distance-box" aria-live="polite"></section>
       </div>
 
       <div id="tab-graph" class="tab" role="tabpanel" aria-labelledby="tab-btn-3" tabindex="0" hidden>
-        <h3>関係図</h3>
+        <h3 data-i18n="ui.tab.graph">関係図</h3>
         <div id="graph" class="graph"></div>
         <section id="groupSummary" class="group-summary" aria-live="polite" hidden></section>
         <div id="graphLegend" class="legend">
-          <span class="dot company" aria-hidden="true"></span> 選んだ会社
-          <span class="dot related" aria-hidden="true"></span> 関係のある会社・組織
+          <span class="dot company" aria-hidden="true"></span> <span data-i18n="ui.legend.company">選んだ会社</span>
+          <span class="dot related" aria-hidden="true"></span> <span data-i18n="ui.legend.related">関係のある会社・組織</span>
         </div>
       </div>
 
       <div id="tab-history" class="tab" role="tabpanel" aria-labelledby="tab-btn-4" tabindex="0" hidden>
         <div class="history">
-          <h3>セッション履歴</h3>
-          <p class="small">解析のたびに、画像の名前と件数を最大20件までこのブラウザーに残します（画像そのものは残しません）。</p>
+          <h3 data-i18n="ui.history.title">セッション履歴</h3>
+          <p class="small" data-i18n="ui.history.note">解析のたびに、画像の名前と件数を最大20件までこのブラウザーに残します（画像そのものは残しません）。</p>
           <ul id="historyList" class="history-list"></ul>
-          <h3>書き出し・読み込み</h3>
+          <h3 data-i18n="ui.export.title">書き出し・読み込み</h3>
           <div class="export">
-            <button id="importJSON" type="button">JSON読み込み</button>
+            <button id="importJSON" type="button" data-i18n="ui.import.button">JSON読み込み</button>
             <input id="importJSONInput" type="file" accept="application/json,.json" hidden />
-            <button id="exportJSON" type="button">JSON書き出し</button>
+            <button id="exportJSON" type="button" data-i18n="ui.export.json">JSON書き出し</button>
             <button id="exportPNG" type="button">選択画像にBB焼き込み出力</button>
           </div>
-          <p class="small">JSONには画像・囲んだ領域・候補・選んだ会社が入ります。PNGは選んだ画像に囲みの枠と会社名を描いたものです。</p>
+          <p class="small" data-i18n="ui.export.note">JSONには画像・囲んだ領域・候補・選んだ会社が入ります。PNGは選んだ画像に囲みの枠と会社名を描いたものです。</p>
         </div>
       </div>
     </section>
@@ -221,46 +230,47 @@
   <div id="helpModal" class="help-modal" hidden>
     <div class="help-modal-content" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
       <div class="help-modal-header">
-        <h2 id="helpTitle">📖 ヘルプ</h2>
-        <button type="button" class="close-help-modal" aria-label="閉じる">✕</button>
+        <h2 id="helpTitle" data-i18n="ui.help.title">📖 ヘルプ</h2>
+        <button type="button" class="close-help-modal" aria-label="閉じる" data-i18n-attr="aria-label:common.close">✕</button>
       </div>
       <div class="help-modal-body">
         <section class="help-section">
-          <h3>🚀 基本的な使い方</h3>
+          <h3 data-i18n="ui.help.basic">🚀 基本的な使い方</h3>
           <ol>
-            <li>画像をアップロード: ドラッグ＆ドロップまたはクリックして画像を選ぶ</li>
-            <li>ロゴ領域を選ぶ: 開いた画面でドラッグ（指でなぞる）して四角で囲む（複数可）</li>
-            <li>解析: 「選択した領域を解析」を押す</li>
-            <li>確かめる: 候補の一覧で検索の順位・種類・照合を見比べ、必要なら別の候補を選ぶ</li>
-            <li>保存: JSON書き出し、または枠を描いたPNGを出力</li>
+            <li data-i18n="ui.help.basic1">画像をアップロード: ドラッグ＆ドロップまたはクリックして画像を選ぶ</li>
+            <li data-i18n="ui.help.basic2">ロゴ領域を選ぶ: 開いた画面でドラッグ（指でなぞる）して四角で囲む（複数可）</li>
+            <li data-i18n="ui.help.basic3">解析: 「選択した領域を解析」を押す</li>
+            <li data-i18n="ui.help.basic4">確かめる: 候補の一覧で検索の順位・種類・照合を見比べ、必要なら別の候補を選ぶ</li>
+            <li data-i18n="ui.help.basic5">保存: JSON書き出し、または枠を描いたPNGを出力</li>
           </ol>
         </section>
         <section class="help-section">
-          <h3>⌨️ キーボード</h3>
+          <h3 data-i18n="ui.help.keys">⌨️ キーボード</h3>
           <table class="shortcut-table">
-            <tr><td><kbd>1</kbd>〜<kbd>4</kbd></td><td>タブを切り替える（入力欄にいるときは切り替えない）</td></tr>
-            <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>タブにいるとき、隣のタブへ移る</td></tr>
-            <tr><td><kbd>Esc</kbd></td><td>ヘルプ・領域を選ぶ画面を閉じる</td></tr>
+            <tr><td><kbd>1</kbd><span data-i18n="ui.help.keyRange">〜</span><kbd>4</kbd></td><td data-i18n="ui.help.key1">タブを切り替える（入力欄にいるときは切り替えない）</td></tr>
+            <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td data-i18n="ui.help.key2">タブにいるとき、隣のタブへ移る</td></tr>
+            <tr><td><kbd>Esc</kbd></td><td data-i18n="ui.help.key3">ヘルプ・領域を選ぶ画面を閉じる</td></tr>
           </table>
         </section>
         <section class="help-section">
-          <h3>💡 うまくいかないとき</h3>
+          <h3 data-i18n="ui.help.trouble">💡 うまくいかないとき</h3>
           <ul>
-            <li>文字のないロゴ・OCRの読み違い・日本語の看板: 「検索語」の欄に会社名やブランド名を入れて「検索」を押す</li>
-            <li>候補の1位が違う: 一覧から正しい候補の「この候補にする」を押す</li>
-            <li>地図が表示されない: 地図タブに切り替えて少し待つ</li>
+            <li data-i18n="ui.help.trouble1">文字のないロゴ・OCRの読み違い: 「検索語」の欄に会社名やブランド名を入れて「検索」を押す</li>
+            <li data-i18n="ui.help.trouble2">日本語の看板: ロゴを囲む画面で「OCRの言語」を「日本語と英語」にする</li>
+            <li data-i18n="ui.help.trouble3">候補の1位が違う: 一覧から正しい候補の「この候補にする」を押す</li>
           </ul>
         </section>
         <section class="help-section">
-          <h3>🔒 プライバシー</h3>
+          <h3 data-i18n="ui.help.privacy">🔒 プライバシー</h3>
           <ul>
-            <li>画像は外へ送りません。OCRもブラウザーの中で動きます</li>
-            <li>外へ送るのは検索語と、候補のQID・ロゴのファイル名だけです（Wikidata・Commonsへの問い合わせ）</li>
+            <li data-i18n="ui.help.privacy1">画像は外へ送りません。OCRもブラウザーの中で動きます</li>
+            <li data-i18n="ui.help.privacy2">外へ送るのは検索語と、候補のQID・ロゴのファイル名だけです（Wikidata・Commonsへの問い合わせ）</li>
           </ul>
         </section>
         <section class="help-section">
-          <h3>📚 詳細情報</h3>
-          <p>詳しい使い方やソースコードは<a href="https://github.com/ipusiron/reverse-logo-hunt" target="_blank" rel="noopener noreferrer">GitHubリポジトリ</a>をご覧ください。</p>
+          <h3 data-i18n="ui.help.more">📚 詳細情報</h3>
+          <p><span data-i18n="ui.help.more1">詳しい使い方やソースコードは</span><a href="https://github.com/ipusiron/reverse-logo-hunt" target="_blank" rel="noopener noreferrer"
+             data-i18n="ui.help.repo">GitHubリポジトリ</a><span data-i18n="ui.help.more2">をご覧ください。</span></p>
         </section>
       </div>
     </div>

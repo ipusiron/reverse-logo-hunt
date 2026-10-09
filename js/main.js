@@ -2,7 +2,7 @@
 import { readExifGps } from "./exif.js";
 import { initMap, setHQPoint, setShotPoint, drawLine, resetMap, refreshMapLayers } from "./map.js";
 import { distancesFrom } from "./geo.js";
-import { resetGraph, showRelations, showGroup, refreshGraph, onModeChange, getMode } from "./graph.js";
+import { resetGraph, showRelations, showGroup, refreshGraph, onModeChange, getMode, relabelGraph } from "./graph.js";
 import { fetchRelations, fetchAncestorLinks, HttpError } from "./wikidata.js";
 import { buildGroup } from "./group-core.js";
 import { findCandidates, imageDataOf, loadImage } from "./analysis.js";
@@ -16,6 +16,11 @@ import { suggestRois } from "./roi-suggest.js";
 import { openMarking, isMarkingOpen } from "./marking.js";
 import { t, getLang } from "./messages.js";
 import { getItem, setItem, getJsonItem } from "./storage.js";
+import { initLang, applyStatic, switchLang } from "./i18n.js";
+
+// 言語は、ほかの文言を出す前に決める
+initLang();
+applyStatic();
 
 const MAX_LONG_SIDE = 1536;
 const HISTORY_KEY = "rlogo_history";
@@ -913,6 +918,18 @@ document.addEventListener("keydown", (e) => {
       activateTab(btn.dataset.tab, { focus: true });
     }
   }
+});
+
+// ---- 言語 ----
+$("langToggle").addEventListener("click", () => {
+  switchLang();
+  applyTheme(document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark");
+  relabelGraph();
+  renderImages();
+  renderMarkedLogos();
+  renderHistory();
+  renderResult();
+  updateExportButtonText();
 });
 
 // ---- 起動 ----
