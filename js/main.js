@@ -1,6 +1,7 @@
 // 画面の組み立てと操作（DOM）。計算は *-core.js・logo-match.js・candidate-rank.js などにある
 import { readExifGps } from "./exif.js";
-import { initMap, setHQPoint, setShotPoint, resetMap, refreshMapLayers } from "./map.js";
+import { initMap, setHQPoint, setShotPoint, drawLine, resetMap, refreshMapLayers } from "./map.js";
+import { distancesFrom } from "./geo.js";
 import { resetGraph, showRelations, showGroup, refreshGraph, onModeChange, getMode } from "./graph.js";
 import { fetchRelations, fetchAncestorLinks, HttpError } from "./wikidata.js";
 import { buildGroup } from "./group-core.js";
@@ -544,12 +545,59 @@ function renderResult() {
 }
 
 let graphToken = 0;
+// 地図: 同じ画像で会社を選んだロゴの本社をすべて出し、撮影地点からの線と距離の表を出す
 function renderMapAndGraph(logo, c) {
   resetMap();
   const im = imageOf(logo);
-  if (c && c.hq) setHQPoint({ qid: c.qid, label: c.label, place: c.hq.label, coord: c.hq.coord });
-  if (im && im.exif) setShotPoint({ ...im.exif, name: im.name });
+  const seen = new Set();
+  const companies = [];
+  for (const l of state.logos.filter((x) => x.imageId === logo.imageId)) {
+    const sc = selectedCandidate(l);
+    if (!sc || seen.has(sc.qid)) continue;
+    seen.add(sc.qid);
+    companies.push({ qid: sc.qid, label: sc.label, place: sc.hq ? sc.hq.label : "", coord: sc.hq ? sc.hq.coord : null, active: !!c && c.qid === sc.qid });
+  }
+  const shot = im && im.exif ? im.exif : null;
+  const rows = distancesFrom(shot, companies);
+  for (const r of rows) {
+    if (!r.coord) continue;
+    if (shot) drawLine(shot, r.coord);
+    setHQPoint(r);
+  }
+  if (shot) setShotPoint({ ...shot, name: im.name });
+  renderDistanceTable(shot, rows);
   renderGraph();
+}
+
+function renderDistanceTable(shot, rows) {
+  const box = $("distanceBox");
+  box.replaceChildren();
+  box.appendChild(el("h4", "", t("dist.title")));
+  if (!rows.length) {
+    box.appendChild(el("p", "small", t("dist.none")));
+    return;
+  }
+  if (!shot) box.appendChild(el("p", "small", t("dist.noExif")));
+  const table = el("table", "score-table distance-table");
+  const head = document.createElement("tr");
+  for (const k of ["dist.company", "dist.hq", "dist.km", "dist.dir"]) {
+    const th = el("th", "", t(k));
+    th.scope = "col";
+    head.appendChild(th);
+  }
+  const thead = document.createElement("thead");
+  thead.appendChild(head);
+  const tbody = document.createElement("tbody");
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+    tr.appendChild(el("td", "", r.label));
+    tr.appendChild(el("td", "", r.coord ? r.place || "-" : t("dist.noHq")));
+    tr.appendChild(el("td", "", r.km === null ? "-" : t("dist.kmValue", { km: r.km })));
+    tr.appendChild(el("td", "", r.dir ? t(`dir.${r.dir}`) : "-"));
+    tbody.appendChild(tr);
+  }
+  table.append(thead, tbody);
+  box.appendChild(table);
 }
 
 // 写真の中で会社を選んだロゴ（重複なし）

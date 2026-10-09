@@ -422,6 +422,9 @@ main {
 .legend .dot.hq, .legend .dot.company { background: #ffcc00; }
 .legend .dot.shot { background: #ff6a6a; }
 .legend .dot.related { background: #4aa3ff; }
+.legend .line-key { display: inline-block; width: 24px; margin-left: 8px; border-top: 2px dashed #ff6a6a; }
+.distance-box { margin-top: 10px; }
+.distance-box h4 { margin: 0 0 6px; font-size: 15px; color: var(--accent); }
 
 .graph-control {
   display: flex;
