@@ -3,26 +3,14 @@
   "vars": [
    "kind",
    "other",
-   "otherLabel"
+   "otherLabel",
+   "start",
+   "end",
+   "share"
   ]
  },
  "results": {
   "bindings": [
-   {
-    "other": {
-     "type": "uri",
-     "value": "http://www.wikidata.org/entity/Q991149"
-    },
-    "kind": {
-     "type": "literal",
-     "value": "subsidiary"
-    },
-    "otherLabel": {
-     "xml:lang": "ja",
-     "type": "literal",
-     "value": "1-UPスタジオ"
-    }
-   },
    {
     "other": {
      "type": "uri",
@@ -36,36 +24,6 @@
      "xml:lang": "ja",
      "type": "literal",
      "value": "モノリスソフト"
-    }
-   },
-   {
-    "other": {
-     "type": "uri",
-     "value": "http://www.wikidata.org/entity/Q2719211"
-    },
-    "kind": {
-     "type": "literal",
-     "value": "subsidiary"
-    },
-    "otherLabel": {
-     "xml:lang": "ja",
-     "type": "literal",
-     "value": "Next Level Games"
-    }
-   },
-   {
-    "other": {
-     "type": "uri",
-     "value": "http://www.wikidata.org/entity/Q7039137"
-    },
-    "kind": {
-     "type": "literal",
-     "value": "subsidiary"
-    },
-    "otherLabel": {
-     "xml:lang": "en",
-     "type": "literal",
-     "value": "Nintendo Australia"
     }
    },
    {
@@ -86,96 +44,6 @@
    {
     "other": {
      "type": "uri",
-     "value": "http://www.wikidata.org/entity/Q11341024"
-    },
-    "kind": {
-     "type": "literal",
-     "value": "subsidiary"
-    },
-    "otherLabel": {
-     "xml:lang": "ja",
-     "type": "literal",
-     "value": "マリオクラブ"
-    }
-   },
-   {
-    "other": {
-     "type": "uri",
-     "value": "http://www.wikidata.org/entity/Q12622992"
-    },
-    "kind": {
-     "type": "literal",
-     "value": "subsidiary"
-    },
-    "otherLabel": {
-     "xml:lang": "ja",
-     "type": "literal",
-     "value": "韓国任天堂"
-    }
-   },
-   {
-    "other": {
-     "type": "uri",
-     "value": "http://www.wikidata.org/entity/Q17042650"
-    },
-    "kind": {
-     "type": "literal",
-     "value": "subsidiary"
-    },
-    "otherLabel": {
-     "xml:lang": "ja",
-     "type": "literal",
-     "value": "任天堂ネットワークサービス"
-    }
-   },
-   {
-    "other": {
-     "type": "uri",
-     "value": "http://www.wikidata.org/entity/Q20651008"
-    },
-    "kind": {
-     "type": "literal",
-     "value": "subsidiary"
-    },
-    "otherLabel": {
-     "xml:lang": "ja",
-     "type": "literal",
-     "value": "Nintendo of America"
-    }
-   },
-   {
-    "other": {
-     "type": "uri",
-     "value": "http://www.wikidata.org/entity/Q20972825"
-    },
-    "kind": {
-     "type": "literal",
-     "value": "subsidiary"
-    },
-    "otherLabel": {
-     "xml:lang": "ja",
-     "type": "literal",
-     "value": "任天堂企画制作本部"
-    }
-   },
-   {
-    "other": {
-     "type": "uri",
-     "value": "http://www.wikidata.org/entity/Q21199606"
-    },
-    "kind": {
-     "type": "literal",
-     "value": "subsidiary"
-    },
-    "otherLabel": {
-     "xml:lang": "ja",
-     "type": "literal",
-     "value": "Nintendo European Research & Development"
-    }
-   },
-   {
-    "other": {
-     "type": "uri",
      "value": "http://www.wikidata.org/entity/Q24863946"
     },
     "kind": {
@@ -186,21 +54,6 @@
      "xml:lang": "ja",
      "type": "literal",
      "value": "SRD"
-    }
-   },
-   {
-    "other": {
-     "type": "uri",
-     "value": "http://www.wikidata.org/entity/Q30343919"
-    },
-    "kind": {
-     "type": "literal",
-     "value": "subsidiary"
-    },
-    "otherLabel": {
-     "xml:lang": "en",
-     "type": "literal",
-     "value": "Nintendo France"
     }
    },
    {
@@ -221,6 +74,36 @@
    {
     "other": {
      "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q11341024"
+    },
+    "kind": {
+     "type": "literal",
+     "value": "subsidiary"
+    },
+    "otherLabel": {
+     "xml:lang": "ja",
+     "type": "literal",
+     "value": "マリオクラブ"
+    }
+   },
+   {
+    "other": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q21199606"
+    },
+    "kind": {
+     "type": "literal",
+     "value": "subsidiary"
+    },
+    "otherLabel": {
+     "xml:lang": "ja",
+     "type": "literal",
+     "value": "Nintendo European Research & Development"
+    }
+   },
+   {
+    "other": {
+     "type": "uri",
      "value": "http://www.wikidata.org/entity/Q119380926"
     },
     "kind": {
@@ -236,7 +119,7 @@
    {
     "other": {
      "type": "uri",
-     "value": "http://www.wikidata.org/entity/Q137970698"
+     "value": "http://www.wikidata.org/entity/Q2719211"
     },
     "kind": {
      "type": "literal",
@@ -245,7 +128,67 @@
     "otherLabel": {
      "xml:lang": "ja",
      "type": "literal",
-     "value": "台湾任天堂"
+     "value": "Next Level Games"
+    }
+   },
+   {
+    "other": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q991149"
+    },
+    "kind": {
+     "type": "literal",
+     "value": "subsidiary"
+    },
+    "otherLabel": {
+     "xml:lang": "ja",
+     "type": "literal",
+     "value": "1-UPスタジオ"
+    }
+   },
+   {
+    "other": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q7039137"
+    },
+    "kind": {
+     "type": "literal",
+     "value": "subsidiary"
+    },
+    "otherLabel": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Nintendo Australia"
+    }
+   },
+   {
+    "other": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q17042650"
+    },
+    "kind": {
+     "type": "literal",
+     "value": "subsidiary"
+    },
+    "otherLabel": {
+     "xml:lang": "ja",
+     "type": "literal",
+     "value": "任天堂ネットワークサービス"
+    }
+   },
+   {
+    "other": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q30343919"
+    },
+    "kind": {
+     "type": "literal",
+     "value": "subsidiary"
+    },
+    "otherLabel": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Nintendo France"
     }
    },
    {
@@ -261,21 +204,26 @@
      "xml:lang": "ja",
      "type": "literal",
      "value": "キャピタル・インターナショナル"
+    },
+    "share": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "0.171"
     }
    },
    {
     "other": {
      "type": "uri",
-     "value": "http://www.wikidata.org/entity/Q11375713"
+     "value": "http://www.wikidata.org/entity/Q20972825"
     },
     "kind": {
      "type": "literal",
-     "value": "owner"
+     "value": "subsidiary"
     },
     "otherLabel": {
      "xml:lang": "ja",
      "type": "literal",
-     "value": "京都銀行"
+     "value": "任天堂企画制作本部"
     }
    },
    {
@@ -291,6 +239,76 @@
      "xml:lang": "ja",
      "type": "literal",
      "value": "パブリック・インベストメント・ファンド"
+    },
+    "share": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "0.063"
+    }
+   },
+   {
+    "other": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q11375713"
+    },
+    "kind": {
+     "type": "literal",
+     "value": "owner"
+    },
+    "otherLabel": {
+     "xml:lang": "ja",
+     "type": "literal",
+     "value": "京都銀行"
+    },
+    "share": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "0.0415"
+    }
+   },
+   {
+    "other": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q12622992"
+    },
+    "kind": {
+     "type": "literal",
+     "value": "subsidiary"
+    },
+    "otherLabel": {
+     "xml:lang": "ja",
+     "type": "literal",
+     "value": "韓国任天堂"
+    }
+   },
+   {
+    "other": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q20651008"
+    },
+    "kind": {
+     "type": "literal",
+     "value": "subsidiary"
+    },
+    "otherLabel": {
+     "xml:lang": "ja",
+     "type": "literal",
+     "value": "Nintendo of America"
+    }
+   },
+   {
+    "other": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q137970698"
+    },
+    "kind": {
+     "type": "literal",
+     "value": "subsidiary"
+    },
+    "otherLabel": {
+     "xml:lang": "ja",
+     "type": "literal",
+     "value": "台湾任天堂"
     }
    }
   ]

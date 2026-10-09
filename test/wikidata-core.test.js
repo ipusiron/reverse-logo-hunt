@@ -89,9 +89,54 @@ test("同じ相手との親子と所有は1本の矢印にまとめ、向きを�
     },
   };
   const r = W.parseRelations(json, "Q1");
-  assert.deepEqual(r.edges, [
+  assert.deepEqual(r.edges.map((e) => ({ source: e.source, target: e.target, kinds: e.kinds })), [
     { source: "Q2", target: "Q1", kinds: ["parent", "owner"] },
     { source: "Q1", target: "Q3", kinds: ["subsidiary"] },
   ]);
   assert.equal(r.nodes.length, 2);
+});
+
+test("関係の文の開始・終了の年と持ち株の比率を読み、すべて終わった矢印を ended にする", () => {
+  const uri = (q) => ({ value: `http://www.wikidata.org/entity/${q}` });
+  const t = (y) => ({ value: `${y}-01-01T00:00:00Z` });
+  const json = {
+    results: {
+      bindings: [
+        { kind: { value: "subsidiary" }, other: uri("Q3"), start: t(2002) },
+        { kind: { value: "subsidiary" }, other: uri("Q4"), start: t(1990), end: t(2016) },
+        { kind: { value: "owner" }, other: uri("Q5"), share: { value: "0.171" } },
+        { kind: { value: "owner" }, other: uri("Q6"), share: { value: "7" } },
+      ],
+    },
+  };
+  const r = W.parseRelations(json, "Q1");
+  const by = (q) => r.edges.find((e) => e.source === q || e.target === q);
+  assert.deepEqual(by("Q3").statements, [{ kind: "subsidiary", start: 2002, end: null, share: null, ended: false }]);
+  assert.equal(by("Q4").ended, true);
+  assert.equal(by("Q5").statements[0].share, 0.171);
+  assert.equal(by("Q6").statements[0].share, null, "1を超える比率は捨てる");
+  const name = (k) => ({ subsidiary: "子会社", owner: "所有者" })[k];
+  assert.equal(W.statementLabel(by("Q3").statements[0], name), "子会社（2002〜）");
+  assert.equal(W.statementLabel(by("Q4").statements[0], name), "子会社（1990〜2016）");
+  assert.equal(W.statementLabel(by("Q5").statements[0], name), "所有者17.1%");
+  assert.equal(W.statementLabel(by("Q5").statements[0], () => "Owner", { sep: " " }), "Owner 17.1%");
+  const en = { sep: " ", open: " (", close: ")", dash: "–" };
+  assert.equal(W.statementLabel(by("Q4").statements[0], () => "Subsidiary", en), "Subsidiary (1990–2016)");
+  assert.equal(W.yearOf({ value: "-0500-01-01T00:00:00Z" }), -500);
+  assert.equal(W.yearOf(null), null);
+});
+
+test("実際の関係（任天堂）: 所有者3者には持ち株の比率がある", () => {
+  const r = W.parseRelations(fx("relations-Q8093.json"), "Q8093");
+  const shares = r.edges.filter((e) => e.kinds.includes("owner")).map((e) => e.statements[0].share).sort();
+  assert.deepEqual(shares, [0.0415, 0.063, 0.171]);
+});
+
+test("1段上の親・所有者の問い合わせと解析", () => {
+  const q = W.ancestorsQuery(["Q26070", "bad", "Q5512642"]);
+  assert.match(q, /VALUES \?child \{ wd:Q26070 wd:Q5512642 \}/);
+  assert.throws(() => W.ancestorsQuery([]));
+  const links = fx("ancestors-group.json").levels.flatMap((l) => W.parseAncestors(l));
+  assert.ok(links.some((l) => l.child === "Q26070" && l.parent === "Q1397688" && l.kind === "parent"));
+  assert.ok(links.every((l) => W.isQid(l.child) && W.isQid(l.parent)));
 });

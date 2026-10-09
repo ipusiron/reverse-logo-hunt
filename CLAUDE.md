@@ -30,6 +30,8 @@ Pure logic ("calculation") modules have no DOM or network dependencies and are t
 - `js/ocr-prep.js` - upscale, grayscale, inversion, frame removal for OCR retries
 - `js/roi-suggest.js` - "auto mark" by connected ink components
 - `js/session-core.js` - workspace JSON v3 builder and validator (also reads v2)
+- `js/group-core.js` - follows parents/owners of all selected companies (up to 3 levels) and finds shared parents
+- `js/geo.js` - great-circle distance and 8-point bearing from the photo location to each headquarters
 
 Network / UI modules:
 
@@ -39,7 +41,8 @@ Network / UI modules:
 - `js/marking.js` - the marking modal (Pointer Events: mouse, touch, pen)
 - `js/map.js` (Leaflet + OSM tiles), `js/graph.js` (Cytoscape, concentric layout by default)
 - `js/main.js` - state, rendering, export/import, theme, keyboard
-- `js/messages.js` - UI strings; `js/storage.js` - safe localStorage
+- `js/messages.js` - UI strings in Japanese and English (same keys); `js/i18n.js` - applies them to `data-i18n` / `data-i18n-attr` and switches language
+- `js/storage.js` - safe localStorage
 
 ## Rules That Tests Enforce
 
@@ -50,7 +53,9 @@ Network / UI modules:
 - No inline event handlers or `style` attributes in `index.html`
 - Colours live in CSS variables in `style.css`; `test/contrast.test.js` checks text pairs at 4.5:1 in both themes
 - Lines: JS/CSS <= 160 characters, `index.html` <= 250
-- README numbers (weights, example values) are recomputed by `test/readme.test.js`; update them together with the code
+- README numbers (weights, example values) are recomputed by `test/readme.test.js` for both `README.md` and `README.en.md`; update them together with the code
+- Every user-visible string goes through `js/messages.js` with the same keys in `ja` and `en`; the default text in `index.html` must equal the `ja` value
+- Keep Tesseract's page segmentation mode at 6 by default (3 makes single-line text signs read as nothing)
 - The README directory tree must list every file with a one-line description
 
 ## Notes

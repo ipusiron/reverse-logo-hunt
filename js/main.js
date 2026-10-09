@@ -1,8 +1,10 @@
 // 画面の組み立てと操作（DOM）。計算は *-core.js・logo-match.js・candidate-rank.js などにある
 import { readExifGps } from "./exif.js";
-import { initMap, setHQPoint, setShotPoint, resetMap, refreshMapLayers } from "./map.js";
-import { resetGraph, showRelations, refreshGraph } from "./graph.js";
-import { fetchRelations, HttpError } from "./wikidata.js";
+import { initMap, setHQPoint, setShotPoint, drawLine, resetMap, refreshMapLayers } from "./map.js";
+import { distancesFrom } from "./geo.js";
+import { resetGraph, showRelations, showGroup, refreshGraph, onModeChange, getMode, relabelGraph } from "./graph.js";
+import { fetchRelations, fetchAncestorLinks, HttpError } from "./wikidata.js";
+import { buildGroup } from "./group-core.js";
 import { findCandidates, imageDataOf, loadImage } from "./analysis.js";
 import { recognize } from "./ocr.js";
 import { brandQueries, normalizeQuery } from "./brand-text.js";
@@ -14,6 +16,11 @@ import { suggestRois } from "./roi-suggest.js";
 import { openMarking, isMarkingOpen } from "./marking.js";
 import { t, getLang } from "./messages.js";
 import { getItem, setItem, getJsonItem } from "./storage.js";
+import { initLang, applyStatic, switchLang } from "./i18n.js";
+
+// 言語は、ほかの文言を出す前に決める
+initLang();
+applyStatic();
 
 const MAX_LONG_SIDE = 1536;
 const HISTORY_KEY = "rlogo_history";
@@ -209,12 +216,12 @@ function showMarking(meta) {
       const d = canvasEl.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, canvasEl.width, canvasEl.height);
       return suggestRois({ width: d.width, height: d.height, data: d.data });
     },
-    onAnalyze: (rois, ui) => analyzeRois(rois, meta, ui),
+    onAnalyze: (rois, ui, options) => analyzeRois(rois, meta, ui, options),
   });
 }
 
 // ---- 解析 ----
-async function analyzeRois(rois, meta, ui) {
+async function analyzeRois(rois, meta, ui, { lang = "eng" } = {}) {
   const logos = rois.map((r) => ({
     id: nextId("logo"),
     imageId: meta.id,
@@ -241,7 +248,7 @@ async function analyzeRois(rois, meta, ui) {
       if (logo.deleted) continue;
       ui.progress(t("progress.ocr"), t("progress.ocrItem", { i: i + 1, n: logos.length }));
       try {
-        const { r, queries } = await readText(logo);
+        const { r, queries } = await readText(logo, lang);
         logo.ocrText = r.text;
         logo.queries = queries;
       } catch (err) {
@@ -281,18 +288,18 @@ function cropCanvas(src, box, pad = 4) {
 // 文字を読み、検索語の候補を作る。1回目で候補が出なければ読み直す
 //   ロゴの字は枠や札に囲まれていることが多く、Tesseract は枠ごと「図」とみなして字を探さないことがある。
 //   読み直しでは、前景の外接矩形（札だけ）に切り詰め、2値にして枠を取り除いてから読む（明暗の向きは2通り試す）。
-async function readText(logo) {
-  const first = await recognize(logo.patch);
+async function readText(logo, lang = "eng") {
+  const first = await recognize(logo.patch, lang);
   let queries = brandQueries(first);
   if (queries.length) return { r: first, queries };
   if (!logo.desc) logo.desc = describe(imageDataOf(logo.patch));
   const box = logo.desc.box;
   const cropped = !box.empty && (box.w < logo.patch.width - 8 || box.h < logo.patch.height - 8);
   const target = cropped ? cropCanvas(logo.patch, box) : logo.patch;
-  const a = await recognize(target, "eng", { frames: true });
+  const a = await recognize(target, lang, { frames: true });
   queries = brandQueries(a);
   if (queries.length) return { r: a, queries };
-  const b = await recognize(target, "eng", { frames: true, invert: !a.inverted });
+  const b = await recognize(target, lang, { frames: true, invert: !a.inverted });
   queries = brandQueries(b);
   if (queries.length) return { r: b, queries };
   return { r: first, queries: [] };
@@ -510,7 +517,7 @@ function renderResult() {
   $("justifyContent").hidden = !logo;
   if (!logo) {
     resetMap();
-    resetGraph();
+    renderGraph();
     return;
   }
   paintRoi(logo.patch);
@@ -543,20 +550,123 @@ function renderResult() {
 }
 
 let graphToken = 0;
+// 地図: 同じ画像で会社を選んだロゴの本社をすべて出し、撮影地点からの線と距離の表を出す
 function renderMapAndGraph(logo, c) {
   resetMap();
-  resetGraph();
   const im = imageOf(logo);
-  if (c && c.hq) setHQPoint({ qid: c.qid, label: c.label, place: c.hq.label, coord: c.hq.coord });
-  if (im && im.exif) setShotPoint({ ...im.exif, name: im.name });
-  if (!c) return;
+  const seen = new Set();
+  const companies = [];
+  for (const l of state.logos.filter((x) => x.imageId === logo.imageId)) {
+    const sc = selectedCandidate(l);
+    if (!sc || seen.has(sc.qid)) continue;
+    seen.add(sc.qid);
+    companies.push({ qid: sc.qid, label: sc.label, place: sc.hq ? sc.hq.label : "", coord: sc.hq ? sc.hq.coord : null, active: !!c && c.qid === sc.qid });
+  }
+  const shot = im && im.exif ? im.exif : null;
+  const rows = distancesFrom(shot, companies);
+  for (const r of rows) {
+    if (!r.coord) continue;
+    if (shot) drawLine(shot, r.coord);
+    setHQPoint(r);
+  }
+  if (shot) setShotPoint({ ...shot, name: im.name });
+  renderDistanceTable(shot, rows);
+  renderGraph();
+}
+
+function renderDistanceTable(shot, rows) {
+  const box = $("distanceBox");
+  box.replaceChildren();
+  box.appendChild(el("h4", "", t("dist.title")));
+  if (!rows.length) {
+    box.appendChild(el("p", "small", t("dist.none")));
+    return;
+  }
+  if (!shot) box.appendChild(el("p", "small", t("dist.noExif")));
+  const table = el("table", "score-table distance-table");
+  const head = document.createElement("tr");
+  for (const k of ["dist.company", "dist.hq", "dist.km", "dist.dir"]) {
+    const th = el("th", "", t(k));
+    th.scope = "col";
+    head.appendChild(th);
+  }
+  const thead = document.createElement("thead");
+  thead.appendChild(head);
+  const tbody = document.createElement("tbody");
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+    tr.appendChild(el("td", "", r.label));
+    tr.appendChild(el("td", "", r.coord ? r.place || "-" : t("dist.noHq")));
+    tr.appendChild(el("td", "", r.km === null ? "-" : t("dist.kmValue", { km: r.km })));
+    tr.appendChild(el("td", "", r.dir ? t(`dir.${r.dir}`) : "-"));
+    tbody.appendChild(tr);
+  }
+  table.append(thead, tbody);
+  box.appendChild(table);
+}
+
+// 写真の中で会社を選んだロゴ（重複なし）
+function selectedCompanies() {
+  const out = [];
+  for (const l of state.logos) {
+    const c = selectedCandidate(l);
+    if (c && !out.some((x) => x.qid === c.qid)) out.push({ qid: c.qid, label: c.label });
+  }
+  return out;
+}
+
+function renderGroupSummary(message, shared = [], names = new Map()) {
+  const box = $("groupSummary");
+  box.replaceChildren();
+  box.hidden = getMode() !== "group";
+  if (box.hidden) return;
+  box.appendChild(el("h4", "", t("group.title")));
+  if (message) {
+    box.appendChild(el("p", "small", message));
+    return;
+  }
+  const ul = el("ul", "group-list");
+  for (const s of shared) {
+    const who = s.companies.map((q) => names.get(q) || q).join(getLang() === "ja" ? "・" : ", ");
+    ul.appendChild(el("li", "", t("group.item", { label: s.label, companies: who, depth: s.depth })));
+  }
+  box.appendChild(ul);
+}
+
+function renderGraph() {
+  resetGraph();
   const token = ++graphToken;
+  if (getMode() === "group") {
+    const companies = selectedCompanies();
+    if (companies.length < 2) {
+      renderGroupSummary(t("group.needTwo"));
+      return;
+    }
+    renderGroupSummary(t("group.loading"));
+    fetchAncestorLinks(companies.map((c) => c.qid), getLang())
+      .then((links) => {
+        if (token !== graphToken) return;
+        const group = buildGroup(companies, links);
+        showGroup(group);
+        const names = new Map(group.nodes.map((n) => [n.qid, n.label]));
+        renderGroupSummary(group.shared.length ? "" : t("group.none"), group.shared, names);
+      })
+      .catch((err) => {
+        if (token === graphToken) renderGroupSummary(errorMessage(err));
+      });
+    return;
+  }
+  renderGroupSummary();
+  const c = selectedCandidate(activeLogo());
+  if (!c) return;
   fetchRelations(c.qid, getLang())
     .then((rel) => {
       if (token === graphToken) showRelations({ qid: c.qid, label: c.label }, rel);
     })
     .catch((err) => log(`${c.label}: ${errorMessage(err)}`));
 }
+
+onModeChange(() => renderGraph());
 
 function selectCandidate(logo, qid) {
   logo.selectedQid = qid;
@@ -808,6 +918,18 @@ document.addEventListener("keydown", (e) => {
       activateTab(btn.dataset.tab, { focus: true });
     }
   }
+});
+
+// ---- 言語 ----
+$("langToggle").addEventListener("click", () => {
+  switchLang();
+  applyTheme(document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark");
+  relabelGraph();
+  renderImages();
+  renderMarkedLogos();
+  renderHistory();
+  renderResult();
+  updateExportButtonText();
 });
 
 // ---- 起動 ----

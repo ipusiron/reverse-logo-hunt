@@ -1,7 +1,15 @@
 // ロゴ領域を選ぶ画面（モーダル）。マウス・タッチ・ペンを Pointer Events でまとめて扱う
 import { t } from "./messages.js";
+import { getItem, setItem } from "./storage.js";
 
 export const MIN_ROI = 20;
+// OCR の言語。jpn+eng を選んだときだけ日本語のデータ（約2MB）を追加で読み込む
+export const OCR_LANGS = Object.freeze(["eng", "jpn+eng"]);
+
+export function ocrLangSetting() {
+  const v = getItem("ocrLang");
+  return OCR_LANGS.includes(v) ? v : "eng";
+}
 let openModal = null;
 
 export function isMarkingOpen() {
@@ -92,13 +100,26 @@ export function openMarking(meta, { onAnalyze, suggest }) {
       return;
     }
     setBusy(true);
-    await onAnalyze(rois.slice(), ui);
+    await onAnalyze(rois.slice(), ui, { lang: langSelect.value });
   });
   clearBtn.id = "modalClearSelection";
   wholeBtn.id = "modalWholeImage";
   autoBtn.id = "modalAutoSuggest";
   analyzeBtn.id = "modalAnalyzeSelection";
   controls.append(clearBtn, wholeBtn, autoBtn, analyzeBtn);
+  const langWrap = el("div", "ocr-lang");
+  const langLabel = el("label", "", t("mark.ocrLang"));
+  langLabel.htmlFor = "ocrLang";
+  const langSelect = document.createElement("select");
+  langSelect.id = "ocrLang";
+  for (const v of OCR_LANGS) {
+    const o = el("option", "", t(`mark.ocrLang.${v}`));
+    o.value = v;
+    langSelect.appendChild(o);
+  }
+  langSelect.value = ocrLangSetting();
+  langSelect.addEventListener("change", () => setItem("ocrLang", langSelect.value));
+  langWrap.append(langLabel, langSelect);
   const status = el("p", "marking-status");
   status.setAttribute("role", "status");
 
@@ -107,7 +128,7 @@ export function openMarking(meta, { onAnalyze, suggest }) {
   const list = el("ul", "modal-selected-rois");
   list.id = "modalSelectedROIs";
   listWrap.appendChild(list);
-  side.append(howto, controls, status, listWrap);
+  side.append(howto, langWrap, controls, status, listWrap);
   body.append(wrapper, side);
 
   const overlay = el("div", "modal-loading");
@@ -223,7 +244,7 @@ export function openMarking(meta, { onAnalyze, suggest }) {
 
   function setBusy(busy) {
     overlay.hidden = !busy;
-    [clearBtn, wholeBtn, autoBtn, analyzeBtn, closeBtn].forEach((b) => (b.disabled = busy));
+    [clearBtn, wholeBtn, autoBtn, analyzeBtn, closeBtn, langSelect].forEach((b) => (b.disabled = busy));
   }
 
   function close() {

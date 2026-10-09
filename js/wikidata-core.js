@@ -132,15 +132,20 @@ export function parseDetails(json) {
   return map;
 }
 
-// 関係（子会社 P355・親会社 P749・所有者 P127）
+// 関係（子会社 P355・親会社 P749・所有者 P127）。廃止ランクを除くすべての文を、
+// 開始（P580）・終了（P582）・持ち株の比率（P1107）の修飾子つきで引く（wdt: だと終わった関係が抜けることがある）
 export function relationsQuery(qid, { uiLang = "ja" } = {}) {
   if (!isQid(qid)) throw new Error("QID が不正です");
   return [
-    "SELECT ?kind ?other ?otherLabel WHERE {",
+    "SELECT ?kind ?other ?otherLabel ?start ?end ?share WHERE {",
     `  VALUES ?company { wd:${qid} }`,
-    '  { ?company wdt:P355 ?other. BIND("subsidiary" AS ?kind) }',
-    '  UNION { ?company wdt:P749 ?other. BIND("parent" AS ?kind) }',
-    '  UNION { ?company wdt:P127 ?other. BIND("owner" AS ?kind) }',
+    '  { ?company p:P355 ?st. ?st ps:P355 ?other. BIND("subsidiary" AS ?kind) }',
+    '  UNION { ?company p:P749 ?st. ?st ps:P749 ?other. BIND("parent" AS ?kind) }',
+    '  UNION { ?company p:P127 ?st. ?st ps:P127 ?other. BIND("owner" AS ?kind) }',
+    "  FILTER NOT EXISTS { ?st wikibase:rank wikibase:DeprecatedRank }",
+    "  OPTIONAL { ?st pq:P580 ?start. }",
+    "  OPTIONAL { ?st pq:P582 ?end. }",
+    "  OPTIONAL { ?st pq:P1107 ?share. }",
     `  SERVICE wikibase:label { bd:serviceParam wikibase:language "${langList(uiLang)}". }`,
     "} LIMIT 300",
   ].join("\n");
@@ -148,10 +153,36 @@ export function relationsQuery(qid, { uiLang = "ja" } = {}) {
 
 export const RELATION_KINDS = Object.freeze(["subsidiary", "parent", "owner"]);
 
+// "2002-01-01T00:00:00Z" から年を取り出す（取れなければ null）
+export function yearOf(v) {
+  const m = /^([+-]?\d{1,6})-/.exec(String((v && v.value) || v || ""));
+  return m ? Number(m[1]) : null;
+}
+
+function shareOf(b) {
+  const n = Number(b.share && b.share.value);
+  return Number.isFinite(n) && n > 0 && n <= 1 ? n : null;
+}
+
+// 1つの文（関係の1行）。ended は終了の年があること
+function statementOf(kind, b) {
+  const start = yearOf(b.start);
+  const end = yearOf(b.end);
+  return { kind, start, end, share: shareOf(b), ended: end !== null };
+}
+
+function addStatement(edge, st) {
+  const same = edge.statements.some((s) => s.kind === st.kind && s.start === st.start && s.end === st.end && s.share === st.share);
+  if (!same) edge.statements.push(st);
+  if (!edge.kinds.includes(st.kind)) edge.kinds.push(st.kind);
+  edge.ended = edge.statements.every((s) => s.ended);
+}
+
 // 矢印は常に「親・所有者 → 子・所有される側」に向ける
 //   subsidiary: 中心 → 相手（相手は中心の子会社）
 //   parent    : 相手 → 中心（相手は中心の親会社）
 //   owner     : 相手 → 中心（相手は中心の所有者）
+// 同じ相手との関係は1本の矢印にまとめ、文（statements）を並べる。すべての文に終了の年があれば ended
 export function parseRelations(json, centerQid) {
   if (!isQid(centerQid)) throw new Error("QID が不正です");
   const rows = json && json.results && Array.isArray(json.results.bindings) ? json.results.bindings : [];
@@ -165,9 +196,46 @@ export function parseRelations(json, centerQid) {
     const source = kind === "subsidiary" ? centerQid : other;
     const target = kind === "subsidiary" ? other : centerQid;
     const key = `${source}>${target}`;
-    if (!edges.has(key)) edges.set(key, { source, target, kinds: [] });
-    const e = edges.get(key);
-    if (!e.kinds.includes(kind)) e.kinds.push(kind);
+    if (!edges.has(key)) edges.set(key, { source, target, kinds: [], statements: [], ended: false });
+    addStatement(edges.get(key), statementOf(kind, b));
   }
   return { nodes: [...nodes.values()], edges: [...edges.values()] };
+}
+
+// 矢印の名前。labelOf(kind) で種類の名前を引く。例: 「子会社（2002〜）」「所有者17.1%」「子会社（〜2016）」
+// sep は名前と比率の間、open・close・dash は年の括弧と範囲の記号（日本語は「（1990〜2016）」、英語は「 (1990–2016)」）
+export function statementLabel(st, labelOf, { sep = "", open = "（", close = "）", dash = "〜" } = {}) {
+  let s = labelOf(st.kind);
+  if (st.share !== null && st.share !== undefined) s += `${sep}${(st.share * 100).toFixed(1)}%`;
+  if (st.start !== null || st.end !== null) s += `${open}${st.start === null ? "" : st.start}${dash}${st.end === null ? "" : st.end}${close}`;
+  return s;
+}
+
+// 1段上の親（P749）と所有者（P127）。共通の親をたどるのに使う
+export function ancestorsQuery(qids, { uiLang = "ja" } = {}) {
+  const ok = [...new Set((qids || []).filter(isQid))];
+  if (!ok.length) throw new Error("QID がありません");
+  return [
+    "SELECT ?child ?kind ?parent ?parentLabel ?end WHERE {",
+    `  VALUES ?child { ${ok.map((q) => `wd:${q}`).join(" ")} }`,
+    '  { ?child p:P749 ?st. ?st ps:P749 ?parent. BIND("parent" AS ?kind) }',
+    '  UNION { ?child p:P127 ?st. ?st ps:P127 ?parent. BIND("owner" AS ?kind) }',
+    "  FILTER NOT EXISTS { ?st wikibase:rank wikibase:DeprecatedRank }",
+    "  OPTIONAL { ?st pq:P582 ?end. }",
+    `  SERVICE wikibase:label { bd:serviceParam wikibase:language "${langList(uiLang)}". }`,
+    "} LIMIT 500",
+  ].join("\n");
+}
+
+export function parseAncestors(json) {
+  const rows = json && json.results && Array.isArray(json.results.bindings) ? json.results.bindings : [];
+  const out = [];
+  for (const b of rows) {
+    const child = qidFromUri(b.child && b.child.value);
+    const parent = qidFromUri(b.parent && b.parent.value);
+    const kind = b.kind && b.kind.value;
+    if (!child || !parent || child === parent || (kind !== "parent" && kind !== "owner")) continue;
+    out.push({ child, parent, kind, parentLabel: (b.parentLabel && b.parentLabel.value) || parent, ended: yearOf(b.end) !== null });
+  }
+  return out;
 }

@@ -6,6 +6,7 @@ import { t } from "./messages.js";
 let map = null;
 let hqLayer = null;
 let shotLayer = null;
+let lineLayer = null;
 const DEFAULT_VIEW = { center: [35.68, 139.76], zoom: 3 };
 
 function popup(lines) {
@@ -27,6 +28,7 @@ export async function initMap() {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
   }).addTo(map);
+  lineLayer = L.layerGroup().addTo(map);
   hqLayer = L.layerGroup().addTo(map);
   shotLayer = L.layerGroup().addTo(map);
   window.addEventListener("resize", () => map.invalidateSize());
@@ -36,6 +38,7 @@ export function resetMap() {
   if (!map) return;
   hqLayer.clearLayers();
   shotLayer.clearLayers();
+  lineLayer.clearLayers();
   map.setView(DEFAULT_VIEW.center, DEFAULT_VIEW.zoom);
 }
 
@@ -47,15 +50,30 @@ function fit() {
   else if (pts.length > 1) map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 10 });
 }
 
-// company = { qid, label, place, coord: { lat, lng } }
+// company = { qid, label, place, coord: { lat, lng }, active, km, dir }
+// active は「根拠・照合」で選んでいるロゴの会社（大きく描く）。km・dir があれば撮影地点からの距離をポップアップに足す
 export function setHQPoint(company) {
   if (!map || !company || !company.coord) return;
   const lines = [t("map.hq", { company: company.label || company.qid })];
   if (company.place) lines.push(t("map.hqPlace", { place: company.place }));
-  L.circleMarker([company.coord.lat, company.coord.lng], { radius: 8, color: "#664d00", weight: 2, fillColor: "#ffcc00", fillOpacity: 0.9 })
+  if (company.km !== null && company.km !== undefined) lines.push(t("map.distance", { km: company.km, dir: t(`dir.${company.dir}`) }));
+  const big = company.active !== false;
+  L.circleMarker([company.coord.lat, company.coord.lng], {
+    radius: big ? 9 : 6,
+    color: "#664d00",
+    weight: 2,
+    fillColor: "#ffcc00",
+    fillOpacity: big ? 0.95 : 0.7,
+  })
     .bindPopup(popup(lines))
     .addTo(hqLayer);
   fit();
+}
+
+// 撮影地点から本社への線（点線）
+export function drawLine(from, to) {
+  if (!map || !from || !to) return;
+  L.polyline([[from.lat, from.lng], [to.lat, to.lng]], { color: "#ff6a6a", weight: 2, dashArray: "6 6", opacity: 0.9 }).addTo(lineLayer);
 }
 
 // exif = { lat, lng, name }

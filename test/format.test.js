@@ -21,8 +21,11 @@ const MIN_LINES = {
   "js/session-core.js": 150,
 };
 
-test("JS とテストの最長行は160文字以下", () => {
-  for (const f of [...JS, ...TESTS]) assert.ok(maxLen(f) <= 160, `${f} の最長行が ${maxLen(f)} 文字`);
+test("JS とテストの最長行は160文字以下（文言の辞書 messages.js は文章なので260文字以下）", () => {
+  for (const f of [...JS, ...TESTS]) {
+    const limit = f === "js/messages.js" ? 260 : 160;
+    assert.ok(maxLen(f) <= limit, `${f} の最長行が ${maxLen(f)} 文字`);
+  }
 });
 
 test("CSS の最長行は160文字以下、index.html は250文字以下", () => {

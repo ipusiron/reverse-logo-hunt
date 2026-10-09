@@ -58,3 +58,10 @@ test("記号を空白にし、空白をまとめる", () => {
   assert.equal(normalizeQuery(""), "");
   assert.equal(normalizeQuery("x".repeat(200)).length, 80);
 });
+
+test("日本語の字の間の空白はつなぐ（英字との間はつながない）", () => {
+  assert.deepEqual(brandQueries("任 天 堂"), ["任天堂"]);
+  assert.deepEqual(brandQueries(["ド コ モ", "docomo"].join(String.fromCharCode(10))), ["ドコモ", "docomo"]);
+  assert.equal(cleanText("ソニー グループ"), "ソニーグループ");
+  assert.equal(cleanText("au 公式"), "au 公式");
+});
