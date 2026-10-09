@@ -1,302 +1,75 @@
-let map;
-let hqLayer;
-let officeLayer;
-let shotLayer;
-let heatLayer;
-let officeCluster;
-let heatPoints = [];
-let mapControlBuilt = false;
-let pendingHeatAttach = false;
+// 地図（Leaflet＋OpenStreetMap のタイル）。本社と撮影地点（EXIF）を点で出す
+// タイルの利用規約に従い、Referer を送る既定の設定のまま https://tile.openstreetmap.org/{z}/{x}/{y}.png を使う。
+// ポップアップは HTML の文字列でなく DOM で組み立てる（会社名・ファイル名を HTML として解釈させない）。
+import { t } from "./messages.js";
 
-const mapState = {
-  showHQ: true,
-  showOffices: true,
-  showHeat: true
-};
+let map = null;
+let hqLayer = null;
+let shotLayer = null;
+const DEFAULT_VIEW = { center: [35.68, 139.76], zoom: 3 };
 
-// HTML escape function to prevent XSS
-function escapeHtml(text) {
-  if (text === null || text === undefined) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-const CLUSTER_CSS = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css';
-const CLUSTER_DEFAULT_CSS = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css';
-const CLUSTER_JS = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js';
-const HEAT_JS = 'https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js';
-
-let pluginPromise = null;
-
-function loadStyle(url){
-  return new Promise((resolve, reject) => {
-    if(document.querySelector(`link[href="${url}"]`)) return resolve();
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = url;
-    link.onload = () => resolve();
-    link.onerror = (err) => reject(err);
-    document.head.appendChild(link);
+function popup(lines) {
+  const div = document.createElement("div");
+  lines.forEach((line, i) => {
+    const p = document.createElement(i === 0 ? "strong" : "div");
+    p.textContent = line;
+    div.appendChild(p);
   });
+  return div;
 }
 
-function loadScript(url){
-  return new Promise((resolve, reject) => {
-    if(document.querySelector(`script[src="${url}"]`)) return resolve();
-    const script = document.createElement('script');
-    script.src = url;
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = (err) => reject(err);
-    document.head.appendChild(script);
-  });
-}
-
-async function ensurePlugins(){
-  if(pluginPromise) return pluginPromise;
-  pluginPromise = (async () => {
-    try {
-      await Promise.all([loadStyle(CLUSTER_CSS), loadStyle(CLUSTER_DEFAULT_CSS)]);
-      await loadScript(CLUSTER_JS);
-    } catch (err) {
-      console.warn('[MAP] MarkerCluster plugin failed to load', err);
-    }
-    try {
-      await loadScript(HEAT_JS);
-    } catch (err) {
-      console.warn('[MAP] Heatmap plugin failed to load', err);
-    }
-  })();
-  return pluginPromise;
-}
-
-export async function initMap(){
-  await ensurePlugins().catch(err => console.warn('[MAP] Plugin load error:', err));
-
-  const mapContainer = document.getElementById('map');
-  if(!mapContainer){
-    console.error('[MAP] Map container not found');
-    return;
-  }
-
-  // Set a minimum height to prevent zero-size issue
-  if(!mapContainer.style.minHeight){
-    mapContainer.style.minHeight = '400px';
-  }
-
-  map = L.map('map', { zoomControl: true, attributionControl: true }).setView([35.68, 139.76], 3);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+export async function initMap() {
+  if (map || typeof L === "undefined") return;
+  const container = document.getElementById("map");
+  if (!container) return;
+  map = L.map(container, { zoomControl: true, attributionControl: true }).setView(DEFAULT_VIEW.center, DEFAULT_VIEW.zoom);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
-    attribution: '&copy; OpenStreetMap'
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
   }).addTo(map);
-
-  hqLayer = L.layerGroup();
-  shotLayer = L.layerGroup();
-  officeCluster = typeof L.markerClusterGroup === 'function'
-    ? L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 60, spiderfyOnMaxZoom: true })
-    : L.layerGroup();
-  officeLayer = officeCluster;
-  heatLayer = typeof L.heatLayer === 'function'
-    ? L.heatLayer([], { radius: 35, blur: 22, maxZoom: 11, minOpacity: 0.25 })
-    : null;
-
-  applyMapState();
-  shotLayer.addTo(map);
-
-  window.addEventListener('resize', () => {
-    if(map && map.invalidateSize) map.invalidateSize();
-  });
-
-  buildMapControl();
-  updateLegend();
-
-  // Expose map globally for invalidateSize calls
-  window.map = map;
-
-  // Invalidate size immediately after initialization
-  // This ensures the map renders correctly even if the tab is hidden
-  setTimeout(() => {
-    if(map && map.invalidateSize){
-      map.invalidateSize();
-      console.log('[MAP] Initial invalidateSize called');
-    }
-  }, 100);
+  hqLayer = L.layerGroup().addTo(map);
+  shotLayer = L.layerGroup().addTo(map);
+  window.addEventListener("resize", () => map.invalidateSize());
 }
 
-function applyMapState(){
-  if(!map) return;
-
-  const container = map.getContainer ? map.getContainer() : null;
-  const hasSize = container && container.offsetWidth > 0 && container.offsetHeight > 0;
-
-  if(mapState.showHQ){
-    if(hqLayer && !map.hasLayer(hqLayer)) hqLayer.addTo(map);
-  } else if(hqLayer && map.hasLayer(hqLayer)){
-    map.removeLayer(hqLayer);
-  }
-
-  if(mapState.showOffices){
-    if(officeLayer && !map.hasLayer(officeLayer)) officeLayer.addTo(map);
-  } else if(officeLayer && map.hasLayer(officeLayer)){
-    map.removeLayer(officeLayer);
-  }
-
-  if(heatLayer){
-    if(mapState.showHeat){
-      if(hasSize){
-        try {
-          if(!map.hasLayer(heatLayer)) heatLayer.addTo(map);
-          heatLayer.setLatLngs(heatPoints);
-        } catch (err) {
-          console.warn('[MAP] Heatmap layer update failed (likely zero-size canvas):', err);
-          // Remove layer and retry later
-          if(map.hasLayer(heatLayer)) map.removeLayer(heatLayer);
-          if(!pendingHeatAttach){
-            pendingHeatAttach = true;
-            setTimeout(() => {
-              pendingHeatAttach = false;
-              const c = map?.getContainer();
-              if(c && c.offsetWidth > 0 && c.offsetHeight > 0){
-                applyMapState();
-              }
-            }, 500);
-          }
-        }
-      } else if(!pendingHeatAttach){
-        pendingHeatAttach = true;
-        setTimeout(() => {
-          pendingHeatAttach = false;
-          const c = map?.getContainer();
-          if(c && c.offsetWidth > 0 && c.offsetHeight > 0){
-            applyMapState();
-          }
-        }, 250);
-      }
-    } else if(map.hasLayer(heatLayer)){
-      map.removeLayer(heatLayer);
-    }
-  }
+export function resetMap() {
+  if (!map) return;
+  hqLayer.clearLayers();
+  shotLayer.clearLayers();
+  map.setView(DEFAULT_VIEW.center, DEFAULT_VIEW.zoom);
 }
 
-function refreshHeatLayer(){
-  if(!heatLayer || !mapState.showHeat) return;
-  const container = map?.getContainer();
-  if(container && container.offsetWidth > 0 && container.offsetHeight > 0){
-    try {
-      heatLayer.setLatLngs(heatPoints);
-    } catch (err) {
-      console.warn('[MAP] Heatmap refresh failed (likely zero-size canvas):', err);
-    }
-  }
+function fit() {
+  const pts = [];
+  hqLayer.eachLayer((m) => pts.push(m.getLatLng()));
+  shotLayer.eachLayer((m) => pts.push(m.getLatLng()));
+  if (pts.length === 1) map.setView(pts[0], 6);
+  else if (pts.length > 1) map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 10 });
 }
 
-function buildMapControl(){
-  if(mapControlBuilt || !map) return;
-  const control = L.control({ position: 'topright' });
-  control.onAdd = () => {
-    const div = L.DomUtil.create('div', 'map-layer-control');
-    div.innerHTML = `
-      <label><input type="checkbox" data-layer="hq" ${mapState.showHQ ? 'checked' : ''}>HQ</label>
-      <label><input type="checkbox" data-layer="offices" ${mapState.showOffices ? 'checked' : ''}>Offices</label>
-      <label><input type="checkbox" data-layer="heat" ${mapState.showHeat ? 'checked' : ''}>Heatmap</label>
-    `;
-    L.DomEvent.disableClickPropagation(div);
-    L.DomEvent.disableScrollPropagation(div);
-    div.querySelectorAll('input[type="checkbox"]').forEach(input => {
-      input.addEventListener('change', () => {
-        const layer = input.dataset.layer;
-        const checked = input.checked;
-        if(layer === 'hq') mapState.showHQ = checked;
-        if(layer === 'offices') mapState.showOffices = checked;
-        if(layer === 'heat') mapState.showHeat = checked;
-        applyMapState();
-        refreshHeatLayer();
-      });
-    });
-    return div;
-  };
-  control.addTo(map);
-  mapControlBuilt = true;
+// company = { qid, label, place, coord: { lat, lng } }
+export function setHQPoint(company) {
+  if (!map || !company || !company.coord) return;
+  const lines = [t("map.hq", { company: company.label || company.qid })];
+  if (company.place) lines.push(t("map.hqPlace", { place: company.place }));
+  L.circleMarker([company.coord.lat, company.coord.lng], { radius: 8, color: "#664d00", weight: 2, fillColor: "#ffcc00", fillOpacity: 0.9 })
+    .bindPopup(popup(lines))
+    .addTo(hqLayer);
+  fit();
 }
 
-function updateLegend(){
-  const legend = document.getElementById('mapLegend');
-  if(!legend || legend.dataset.heatAppended) return;
-  const span = document.createElement('span');
-  span.className = 'dot heat';
-  span.textContent = ' Heatmap';
-  legend.appendChild(span);
-  legend.dataset.heatAppended = 'true';
+// exif = { lat, lng, name }
+export function setShotPoint(exif) {
+  if (!map || !exif || !Number.isFinite(exif.lat) || !Number.isFinite(exif.lng)) return;
+  L.circleMarker([exif.lat, exif.lng], { radius: 7, color: "#7a1d1d", weight: 2, fillColor: "#ff6a6a", fillOpacity: 0.85 })
+    .bindPopup(popup([t("map.shot", { name: exif.name || "" })]))
+    .addTo(shotLayer);
+  fit();
 }
 
-export function resetMap(){
-  heatPoints = [];
-  if(hqLayer) hqLayer.clearLayers();
-  if(officeLayer) officeLayer.clearLayers();
-  if(shotLayer) shotLayer.clearLayers();
-  if(heatLayer) heatLayer.setLatLngs([]);
-  if(map) map.setView([35.68, 139.76], 3);
-  applyMapState();
-}
-
-export function setHQPoint(company){
-  if(!company?.coord || !hqLayer) return;
-  const marker = L.circleMarker([company.coord.lat, company.coord.lng], {
-    radius: 7,
-    color: '#664d00',
-    weight: 1,
-    fillColor: '#ffcc00',
-    fillOpacity: 0.9
-  }).bindPopup(`<strong>HQ</strong><br/>${escapeHtml(company.label || company.qid)}`);
-  marker.addTo(hqLayer);
-  heatPoints.push([company.coord.lat, company.coord.lng, 0.9]);
-  applyMapState();
-
-  // Only refresh heatmap when map is visible and has size
-  if(map?.getContainer()?.offsetWidth > 0){
-    refreshHeatLayer();
-  }
-
-  if(map) map.setView([company.coord.lat, company.coord.lng], 6, { animate: true });
-}
-
-export function addOfficePoint(office, company){
-  if(!office?.coord || !officeLayer) return;
-  const marker = L.circleMarker([office.coord.lat, office.coord.lng], {
-    radius: 6,
-    color: '#005266',
-    weight: 1,
-    fillColor: '#00c6ff',
-    fillOpacity: 0.8
-  }).bindPopup(`<strong>${escapeHtml(company?.label || company?.qid || 'Company')}</strong><br/>${escapeHtml(office.name || 'Office/Factory')}`);
-  officeLayer.addLayer(marker);
-  heatPoints.push([office.coord.lat, office.coord.lng, 0.5]);
-  applyMapState();
-
-  // Only refresh heatmap when map is visible and has size
-  if(map?.getContainer()?.offsetWidth > 0){
-    refreshHeatLayer();
-  }
-}
-
-export function setShotPoint(exif){
-  if(!exif?.lat || !shotLayer) return;
-  const marker = L.circleMarker([exif.lat, exif.lng], {
-    radius: 6,
-    color: '#7a1d1d',
-    weight: 1,
-    fillColor: '#ff6a6a',
-    fillOpacity: 0.8
-  }).bindPopup('撮影地点 (EXIF)');
-  marker.addTo(shotLayer);
-  if(!map.hasLayer(shotLayer)) shotLayer.addTo(map);
-}
-
-export function refreshMapLayers(){
-  applyMapState();
-  refreshHeatLayer();
-  if(map){
-    map.invalidateSize();
-  }
+// タブを表示したときに呼ぶ（隠れた状態で作った地図は大きさを測り直す必要がある）
+export function refreshMapLayers() {
+  if (!map) return;
+  map.invalidateSize();
+  fit();
 }

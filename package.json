@@ -1,0 +1,8 @@
+{
+  "name": "reverse-logo-hunt",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}

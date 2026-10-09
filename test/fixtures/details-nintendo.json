@@ -1,0 +1,247 @@
+{
+ "head": {
+  "vars": [
+   "item",
+   "logo",
+   "hq",
+   "hqLabel",
+   "coord",
+   "isOrg",
+   "isBrand"
+  ]
+ },
+ "results": {
+  "bindings": [
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q8093"
+    },
+    "hq": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q34600"
+    },
+    "coord": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "Point(135.768111111 35.011611111)"
+    },
+    "logo": {
+     "type": "uri",
+     "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Nintendo.svg"
+    },
+    "hqLabel": {
+     "xml:lang": "ja",
+     "type": "literal",
+     "value": "京都市"
+    },
+    "isOrg": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "true"
+    },
+    "isBrand": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q170323"
+    },
+    "logo": {
+     "type": "uri",
+     "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Nintendo%20DS%20Logo.svg"
+    },
+    "isOrg": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    },
+    "isBrand": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q172742"
+    },
+    "logo": {
+     "type": "uri",
+     "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Family%20Computer%20logo.svg"
+    },
+    "isOrg": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    },
+    "isBrand": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q172742"
+    },
+    "logo": {
+     "type": "uri",
+     "value": "http://commons.wikimedia.org/wiki/Special:FilePath/NES%20logo.svg"
+    },
+    "isOrg": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    },
+    "isBrand": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q182172"
+    },
+    "logo": {
+     "type": "uri",
+     "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Nintendo%20GameCube%20Official%20Logo.svg"
+    },
+    "isOrg": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    },
+    "isBrand": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q182172"
+    },
+    "logo": {
+     "type": "uri",
+     "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Nintendo%20Gamecube-Logo.svg"
+    },
+    "isOrg": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    },
+    "isBrand": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q182172"
+    },
+    "logo": {
+     "type": "uri",
+     "value": "http://commons.wikimedia.org/wiki/Special:FilePath/GC%20Logo.svg"
+    },
+    "isOrg": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    },
+    "isBrand": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q203597"
+    },
+    "logo": {
+     "type": "uri",
+     "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Nintendo%203DS%20logo.svg"
+    },
+    "isOrg": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    },
+    "isBrand": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q58379130"
+    },
+    "isOrg": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    },
+    "isBrand": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q8079"
+    },
+    "logo": {
+     "type": "uri",
+     "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Wii.svg"
+    },
+    "isOrg": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    },
+    "isBrand": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q56942"
+    },
+    "logo": {
+     "type": "uri",
+     "value": "http://commons.wikimedia.org/wiki/Special:FilePath/WiiU.svg"
+    },
+    "isOrg": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    },
+    "isBrand": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "false"
+    }
+   }
+  ]
+ }
+}

@@ -1,831 +1,332 @@
 # Technical Documentation - Reverse Logo Hunt
 
-このドキュメントでは、Reverse Logo Huntの技術的な実装詳細、コアアルゴリズム、設計上の工夫について解説します。
+このドキュメントでは、Reverse Logo Huntのしくみ（モジュールの分け方、照合・検索・OCRのアルゴリズム、問い合わせの中身、安全対策、テスト）を開発者向けに説明します。使い方はREADME.mdを見てください。
 
 ---
 
 ## 📚 目次
 
-1. [アーキテクチャ概要](#アーキテクチャ概要)
-2. [ロゴ検出アルゴリズム](#ロゴ検出アルゴリズム)
-3. [類似度スコアリング](#類似度スコアリング)
-4. [Wikidata統合](#wikidata統合)
-5. [地図可視化の最適化](#地図可視化の最適化)
-6. [キャッシング戦略](#キャッシング戦略)
-7. [セキュリティ対策](#セキュリティ対策)
-8. [パフォーマンス最適化](#パフォーマンス最適化)
+1. [モジュールの構成](#モジュールの構成)
+2. [解析の流れ](#解析の流れ)
+3. [OCRと検索語](#ocrと検索語)
+4. [Wikidataへの問い合わせ](#wikidataへの問い合わせ)
+5. [Commonsへの問い合わせ](#commonsへの問い合わせ)
+6. [ロゴの照合](#ロゴの照合)
+7. [候補の並べ方](#候補の並べ方)
+8. [自動で候補を囲む](#自動で候補を囲む)
+9. [地図と関係図](#地図と関係図)
+10. [保存と読み込み](#保存と読み込み)
+11. [安全対策](#安全対策)
+12. [テストと確かめ方](#テストと確かめ方)
+13. [限界と今後](#限界と今後)
 
 ---
 
-## アーキテクチャ概要
+## モジュールの構成
 
-### ES6モジュール構成
+計算部（DOMにも通信にも依存しない純粋な関数）と、通信・画面の部分を分けています。計算部はNode.jsの`node --test`でそのまま検査できます。
 
-```
-js/
-├── main.js       - エントリポイント、UI制御、統合処理
-├── detect.js     - ロゴROI検出（エッジ検出、OCR、NMS）
-├── wikidata.js   - SPARQL検索、企業データ取得
-├── commons.js    - Wikimedia Commons API、ロゴ画像取得
-├── map.js        - Leaflet地図、ヒートマップ、レイヤー管理
-├── graph.js      - Cytoscape.js関係図、エッジ調整機能
-├── exif.js       - GPS座標抽出
-└── cache.js      - IndexedDB TTLキャッシュ
-```
+| ファイル | 種類 | 役割 |
+|:--|:--|:--|
+| `js/logo-match.js` | 計算部 | 背景の推定・前景の取り出し・形・明暗の構造・縦横比・色の比較 |
+| `js/brand-text.js` | 計算部 | OCRの文字から検索語の候補を作る |
+| `js/wikidata-core.js` | 計算部 | 検索のURL、SPARQLの組み立て、応答の解析、関係の向きの正規化 |
+| `js/commons-core.js` | 計算部 | imageinfoのURL、応答の解析、作者のHTMLから文字を取り出す |
+| `js/exif-core.js` | 計算部 | ExifReaderの出力から緯度・経度を取り出す |
+| `js/candidate-rank.js` | 計算部 | 検索の順位・種類・照合から総合を出して並べる |
+| `js/ocr-prep.js` | 計算部 | OCRの前の拡大・グレースケール・反転・枠の除去 |
+| `js/roi-suggest.js` | 計算部 | 「自動で候補を囲む」 |
+| `js/session-core.js` | 計算部 | JSONの書き出しの形と、読み込みの検証 |
+| `js/wikidata.js` | 通信 | Wikidataへの問い合わせとキャッシュ |
+| `js/commons.js` | 通信 | Commonsへの問い合わせとキャッシュ |
+| `js/cache.js` | 通信 | IndexedDBの24時間キャッシュ |
+| `js/analysis.js` | 通信 | 1つの領域について「検索→詳細→照合→並べ替え」 |
+| `js/ocr.js` | 画面 | Tesseract.jsのワーカーを言語ごとに1つ作って使い回す |
+| `js/exif.js` | 画面 | ExifReaderで撮影地点を読む |
+| `js/marking.js` | 画面 | ロゴを囲む画面（Pointer Events） |
+| `js/map.js` | 画面 | Leafletの地図 |
+| `js/graph.js` | 画面 | Cytoscape.jsの関係図 |
+| `js/messages.js` | 画面 | 画面の文言の辞書 |
+| `js/storage.js` | 画面 | localStorageを使えなくても止まらない読み書き |
+| `js/main.js` | 画面 | 全体の組み立てと操作 |
 
-### データフロー
-
-```
-画像アップロード
-    ↓
-手動ROI選択（モーダル）
-    ↓
-OCR (Tesseract.js WASM)
-    ↓
-Wikidata SPARQL検索
-    ↓
-Commons APIでロゴ取得
-    ↓
-類似度計算 (pHash + Color + ORB)
-    ↓
-地図・関係図の可視化
-```
+外部のライブラリーは、Leaflet 1.9.4、Cytoscape.js 3.28.1、Tesseract.js 5.0.5、ExifReader 4.23.5です（すべて版を固定し、SRIを付けています）。
 
 ---
 
-## ロゴ検出アルゴリズム
+## 解析の流れ
 
-### 1. エッジベース領域検出（detect.js:84-158）
-
-**目的**: 画像内のロゴ候補領域を自動検出
-
-**アルゴリズム**:
-
-```javascript
-// 1. Sobelエッジ検出
-function sobelEdgeDetection(imageData) {
-  const kernelX = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]];
-  const kernelY = [[1, 2, 1], [0, 0, 0], [-1, -2, -1]];
-
-  // 各ピクセルで勾配計算
-  for (y = 1; y < h - 1; y++) {
-    for (x = 1; x < w - 1; x++) {
-      const gx = convolve(kernel_x);
-      const gy = convolve(kernel_y);
-      const magnitude = Math.sqrt(gx * gx + gy * gy);
-      edge[y][x] = magnitude > threshold ? 255 : 0;
-    }
-  }
-}
-
-// 2. スライディングウィンドウ + エッジ密度計算
-const windowSizes = [
-  Math.floor(minDim * 0.15),  // 小ロゴ用
-  Math.floor(minDim * 0.23)   // 大ロゴ用
-];
-const stride = Math.floor(windowSize * 0.4); // 60%オーバーラップ
-
-for (let y = 0; y <= h - windowSize; y += stride) {
-  for (let x = 0; x <= w - windowSize; x += stride) {
-    const density = calculateEdgeDensity(x, y, windowSize);
-    if (density > 0.15) {  // エッジ密度閾値
-      candidates.push({ x, y, w: windowSize, h: windowSize, score: density });
-    }
-  }
-}
-
-// 3. Non-Maximum Suppression (NMS)
-function nms(boxes, iouThreshold = 0.3) {
-  // IoU (Intersection over Union) で重複除去
-  boxes.sort((a, b) => b.score - a.score);
-  const keep = [];
-
-  for (const box of boxes) {
-    let suppress = false;
-    for (const kept of keep) {
-      if (iou(box, kept) > iouThreshold) {
-        suppress = true;
-        break;
-      }
-    }
-    if (!suppress) keep.push(box);
-  }
-  return keep.slice(0, 16); // 最大16ROI
-}
+```
+画像の読み込み（長辺1536pxまで縮小、EXIFのGPSを読む）
+  ↓
+ロゴを囲む（marking.js。座標は画像の画素で整数）
+  ↓
+領域ごとに OCR（ocr.js ＋ ocr-prep.js）→ 検索語の候補（brand-text.js）
+  ↓
+領域ごとに検索（analysis.js）
+  1. wbsearchentities で上位8件（順位つき）
+  2. SPARQL で、その8件のロゴ・本社の座標・組織かどうか・ブランドかどうか
+  3. ロゴのある候補（最大6件）の imageinfo を1回で引き、サムネイルを読み込む
+  4. 領域とサムネイルを照合（logo-match.js）
+  5. 総合で並べる（candidate-rank.js）。1位を仮に選ぶ
+  ↓
+画面: 候補の一覧・点数の内訳・地図（本社と撮影地点）・関係図（選んだ会社）
 ```
 
-**特徴**:
-- **2段階ウィンドウサイズ**: 小ロゴ（15%）と大ロゴ（23%）を同時検出
-- **60%オーバーラップ**: ロゴの位置ズレに対応
-- **エッジ密度フィルター**: ノイズ除去（密度 > 0.15）
-- **NMS重複除去**: IoU 0.3で類似領域を統合
-
-### 2. OCRによるブランド名抽出（detect.js:124-136）
-
-```javascript
-async function quickOCR(canvas) {
-  const worker = await Tesseract.createWorker();
-  await worker.loadLanguage('eng');
-  await worker.initialize('eng');
-
-  const { data: { text } } = await worker.recognize(canvas);
-  await worker.terminate(); // メモリリーク防止
-
-  return text.trim();
-}
-```
-
-**工夫**:
-- **Workerの即座終了**: 各ROIごとにWorkerを作成・破棄してメモリ管理
-- **英語のみ**: ブランド名は通常ラテン文字（高速化）
+1つの候補でロゴの取得や照合に失敗しても、その候補を「照合なし」にして残りを続けます。
 
 ---
 
-## 類似度スコアリング
+## OCRと検索語
 
-### 総合スコア計算式（main.js:214-244）
+### 下ごしらえ（`ocr-prep.js`）
 
-```javascript
-const totalScore = 0.5 * phashScore + 0.3 * colorScore + 0.2 * orbScore;
-```
+- 高さが120px未満の領域は、120pxになるまで拡大する（最大3倍）。Tesseractは小さい字を読み落とすため
+- グレースケールにする。外周の色（背景）の明るさが128未満なら明暗を反転し、「白地に黒い字」にそろえる
+- 読み直しのときだけ、2値にして枠を取り除く（`removeFrames`）。大津の方法でしきい値を決め、黒い連結成分のうち幅が画像の70%を超えるか高さが90%を超えるものを白で塗りつぶす
 
-### 1. pHash（Perceptual Hash）
+### 読み直し（`main.js`の`readText`）
 
-**実装**: 簡易8x8平均ハッシュ
+1回目で検索語の候補が1つも出なければ、前景の外接矩形（ロゴの札だけ）に切り詰め、枠を取り除いて読み直します。明暗の向きは2通り試します。
 
-```javascript
-function simplePHash(canvas) {
-  const temp = document.createElement('canvas');
-  temp.width = 32;
-  temp.height = 32;
-  const ctx = temp.getContext('2d');
+これは、任天堂のロゴ（赤い札の中に、白い角丸の枠で囲まれた白い字）で、Tesseractの単語が0件だったために入れました。下ごしらえ後の画像は人の目には読めるのに、字を囲む枠があるとTesseractが領域ごと「図」とみなして字を探さないためです。枠を取り除くと「Nintendo」と読めます。
 
-  // グレースケール変換
-  ctx.drawImage(canvas, 0, 0, 32, 32);
-  const imageData = ctx.getImageData(0, 0, 32, 32);
-  const gray = toGrayscale(imageData);
+### 検索語の候補（`brand-text.js`）
 
-  // 8x8にダウンサンプリング
-  const small = resize(gray, 8, 8);
-
-  // 平均値計算
-  const avg = small.reduce((a, b) => a + b) / 64;
-
-  // 64ビットハッシュ生成
-  let hash = 0n;
-  for (let i = 0; i < 64; i++) {
-    if (small[i] > avg) {
-      hash |= (1n << BigInt(i));
-    }
-  }
-
-  return hash;
-}
-
-function hammingDistance(hash1, hash2) {
-  let xor = hash1 ^ hash2;
-  let count = 0;
-  while (xor > 0n) {
-    count += Number(xor & 1n);
-    xor >>= 1n;
-  }
-  return count;
-}
-
-const phashScore = 1 - (hammingDistance(hash1, hash2) / 64);
-```
-
-**特徴**:
-- **形状重視**: 色変化に頑健
-- **高速**: DCTの代わりに平均値ベース
-- **BigInt使用**: 64ビットハッシュの正確な比較
-
-### 2. 色相ヒストグラム類似度
-
-```javascript
-function colorHistogramSimilarity(canvas1, canvas2) {
-  const hist1 = computeHSVHistogram(canvas1, 16); // 16ビン
-  const hist2 = computeHSVHistogram(canvas2, 16);
-
-  // コサイン類似度
-  const dotProduct = hist1.reduce((sum, val, i) => sum + val * hist2[i], 0);
-  const mag1 = Math.sqrt(hist1.reduce((sum, val) => sum + val * val, 0));
-  const mag2 = Math.sqrt(hist2.reduce((sum, val) => sum + val * val, 0));
-
-  return dotProduct / (mag1 * mag2);
-}
-
-function computeHSVHistogram(canvas, bins) {
-  const ctx = canvas.getContext('2d');
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const histogram = new Array(bins).fill(0);
-
-  for (let i = 0; i < imageData.data.length; i += 4) {
-    const [h, s, v] = rgbToHSV(
-      imageData.data[i],
-      imageData.data[i + 1],
-      imageData.data[i + 2]
-    );
-
-    if (s > 0.2 && v > 0.2) { // 低彩度・低明度を除外
-      const binIndex = Math.floor((h / 360) * bins);
-      histogram[binIndex]++;
-    }
-  }
-
-  // 正規化
-  const total = histogram.reduce((a, b) => a + b, 0);
-  return histogram.map(v => v / total);
-}
-```
-
-**工夫**:
-- **HSV色空間**: RGBより色相の一貫性が高い
-- **低彩度除外**: 背景ノイズを除去
-- **コサイン類似度**: ヒストグラム分布の比較に最適
-
-### 3. ORB特徴点マッチング（簡易版）
-
-```javascript
-function orbFeatureMatching(canvas1, canvas2) {
-  // Sobelエッジ検出で特徴点近似
-  const edges1 = detectEdges(canvas1);
-  const edges2 = detectEdges(canvas2);
-
-  // 128x128に正規化
-  const norm1 = resizeEdges(edges1, 128, 128);
-  const norm2 = resizeEdges(edges2, 128, 128);
-
-  // ピクセル単位の相関計算
-  let matches = 0;
-  let total = 0;
-  for (let y = 0; y < 128; y++) {
-    for (let x = 0; x < 128; x++) {
-      if (norm1[y][x] > 0 || norm2[y][x] > 0) {
-        total++;
-        if (norm1[y][x] > 0 && norm2[y][x] > 0) {
-          matches++;
-        }
-      }
-    }
-  }
-
-  return total > 0 ? matches / total : 0;
-}
-```
-
-**注意**: 真のORBではなくエッジベースの近似実装（高速化のため）
+- 商標の記号（™ ® © ℠）を空白にしてから、NFKCで全角を半角にそろえる（先に外すのは、NFKCが™を「TM」に変えて前の語にくっつけるため）
+- 行ごとに、2〜4語の行は行全体も候補にし、続けて語を並べる
+- Tesseractの単語の高さと確からしさがあれば、「高さ×(0.5＋確からしさ)」の大きい語を前にする（ロゴの社名はたいてい一番大きい字）
+- 捨てるもの: 数字だけ、同じ文字の繰り返し、母音のない6文字以上の英字列（読み違いに多い）、the・Ltd・Incなどの語
+- 残すもの: 子音だけの短い略称（BMW・DHL・HSBC）、2文字の略称（HP・LG・3M）、日本語（2文字以上）
+- 最大5つ
 
 ---
 
-## Wikidata統合
+## Wikidataへの問い合わせ
 
-### SPARQL検索クエリ（wikidata.js:7-27）
+### 検索
+
+`https://www.wikidata.org/w/api.php?action=wbsearchentities&type=item&origin=*&search=…&language=…&uselang=…&limit=8`
+
+- 検索語に日本語の文字があれば`language=ja`、なければ`en`
+- `uselang`は画面の言語（ラベルと説明の言語）
+- 応答の順番をそのまま順位にする
+
+以前は、WDQSの`wikibase:mwapi`のSearchを使っていました。この方法は検索の順位を出力しない（結果がQIDの順に並ぶ）ため、「nintendo」の50件に任天堂本体（Q8093）が入らず、上位の候補が関連会社やゲーム機になっていました（2026-10-09に実測）。
+
+### 候補の詳細（SPARQL）
 
 ```sparql
-SELECT ?item ?itemLabel ?logo ?hq ?coord ?country WHERE {
-  SERVICE wikibase:mwapi {
-    bd:serviceParam wikibase:endpoint "www.wikidata.org";
-                    wikibase:api "Search";
-                    mwapi:srsearch "sony";  -- ブランド名
-                    mwapi:srlimit "10".
-    ?item wikibase:apiOutputItem mwapi:title.
-  }
-  OPTIONAL { ?item wdt:P154 ?logo. }           -- ロゴ画像
-  OPTIONAL { ?item wdt:P159 ?hq.
-             ?hq wdt:P625 ?coord. }            -- 本社座標
-  OPTIONAL { ?item wdt:P17 ?country. }         -- 国
-  SERVICE wikibase:label {
-    bd:serviceParam wikibase:language "en,ja".
-  }
+SELECT ?item ?logo ?hq ?hqLabel ?coord ?isOrg ?isBrand WHERE {
+  VALUES ?item { wd:Q8093 wd:Q172742 … }
+  OPTIONAL { ?item wdt:P154 ?logo. }
+  OPTIONAL { ?item wdt:P159 ?hq. OPTIONAL { ?hq wdt:P625 ?coord. } }
+  BIND(EXISTS { { ?item wdt:P159 ?o1 } UNION { ?item wdt:P452 ?o2 } UNION { ?item wdt:P749 ?o3 }
+    UNION { ?item wdt:P355 ?o4 } UNION { ?item wdt:P127 ?o5 } } AS ?isOrg)
+  BIND(EXISTS { ?item wdt:P31 wd:Q431289 } AS ?isBrand)
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "ja,en,mul". }
 }
 ```
 
-**工夫**:
-- **MWApi検索**: ファジーマッチング（完全一致不要）
-- **OPTIONAL句**: データが欠けていても結果を返す
-- **多言語ラベル**: 英語・日本語の両方対応
+- `VALUES`に入れるのは`^Q[1-9][0-9]{0,11}$`に合うQIDだけです。利用者の文字列はSPARQLに入れません
+- 「組織かどうか」は、本社所在地（P159）・業種（P452）・親会社（P749）・子会社（P355）・所有者（P127）のどれかを持つかで判定します。`P31/P279*`で上位のクラスをたどる判定は、8件で10.45秒（3段に限っても7.92秒）かかったため使いません。この判定は1.01秒でした（2026-10-09に実測）
 
-### 関係グラフ取得（wikidata.js:30-62）
+### 関係
 
 ```sparql
-SELECT ?related ?relatedLabel ?rel WHERE {
-  VALUES ?item { wd:Q34600 }  -- Nintendo
-  VALUES ?rel { wdt:P355 wdt:P749 wdt:P127 }  -- 子会社/親会社/所有者
-  ?item ?rel ?related.
-  SERVICE wikibase:label {
-    bd:serviceParam wikibase:language "en,ja".
-  }
-}
+SELECT ?kind ?other ?otherLabel WHERE {
+  VALUES ?company { wd:Q8093 }
+  { ?company wdt:P355 ?other. BIND("subsidiary" AS ?kind) }
+  UNION { ?company wdt:P749 ?other. BIND("parent" AS ?kind) }
+  UNION { ?company wdt:P127 ?other. BIND("owner" AS ?kind) }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "ja,en,mul". }
+} LIMIT 300
 ```
 
-**プロパティ**:
-- **P355**: 子会社（subsidiary）
-- **P749**: 親会社（parent organization）
-- **P127**: 所有者（owned by）
+`parseRelations`は矢印を「親会社・所有者→子会社・所有される側」にそろえます。同じ相手との関係（親会社かつ所有者など）は1本の矢印にまとめます。
 
 ---
 
-## 地図可視化の最適化
+## Commonsへの問い合わせ
 
-### ゼロサイズキャンバス対策（map.js:137-171）
+`https://commons.wikimedia.org/w/api.php?action=query&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=330&iiextmetadatafilter=Artist|LicenseShortName&origin=*&titles=File:A|File:B|…`
 
-**問題**: タブが非表示時（`display:none`）、Leaflet heatmapのキャンバスがゼロサイズになりエラー
-
-**解決策**:
-
-```javascript
-function applyMapState() {
-  const container = map.getContainer ? map.getContainer() : null;
-  const hasSize = container && container.offsetWidth > 0 && container.offsetHeight > 0;
-
-  if (heatLayer) {
-    if (mapState.showHeat) {
-      if (hasSize) {
-        try {
-          if (!map.hasLayer(heatLayer)) heatLayer.addTo(map);
-          heatLayer.setLatLngs(heatPoints);
-        } catch (err) {
-          console.warn('[MAP] Heatmap failed (zero-size canvas):', err);
-          // リトライ機構
-          if (!pendingHeatAttach) {
-            pendingHeatAttach = true;
-            setTimeout(() => {
-              pendingHeatAttach = false;
-              const c = map?.getContainer();
-              if (c && c.offsetWidth > 0 && c.offsetHeight > 0) {
-                applyMapState();
-              }
-            }, 500);
-          }
-        }
-      } else {
-        // サイズ取得まで待機
-        setTimeout(() => applyMapState(), 250);
-      }
-    }
-  }
-}
-```
-
-**工夫**:
-- **サイズチェック**: `offsetWidth > 0`で描画可能判定
-- **Try-Catch**: エラー時のグレースフルフォールバック
-- **リトライ機構**: 500ms後に再試行
-- **最小高さ設定**: CSS `min-height: 400px`
-
-### プラグインの遅延ロード（map.js:48-64）
-
-```javascript
-async function ensurePlugins() {
-  if (pluginPromise) return pluginPromise;
-
-  pluginPromise = (async () => {
-    try {
-      // MarkerCluster CSS/JS
-      await Promise.all([
-        loadStyle(CLUSTER_CSS),
-        loadStyle(CLUSTER_DEFAULT_CSS)
-      ]);
-      await loadScript(CLUSTER_JS);
-    } catch (err) {
-      console.warn('[MAP] MarkerCluster load failed', err);
-    }
-
-    try {
-      // Heatmap JS
-      await loadScript(HEAT_JS);
-    } catch (err) {
-      console.warn('[MAP] Heatmap load failed', err);
-    }
-  })();
-
-  return pluginPromise;
-}
-```
-
-**利点**:
-- **並列ロード**: CSS2つを同時取得
-- **個別エラーハンドリング**: 片方失敗しても続行
-- **シングルトンパターン**: 重複ロード防止
+- 照合する候補のファイルを1回の問い合わせで引きます
+- 幅330pxは、Commonsが用意している既定の幅の1つです。既定にない幅（以前の512px）は960pxに丸められていました
+- サムネイルの配信元は`thumb.wikimedia.org`です（2026-10-09の応答。以前の`upload.wikimedia.org`も受け付けます）。改修前はこの配信元がCSPになく、解析が毎回「解析エラー: undefined」で止まっていました
+- 作者（Artist）はCommonsではHTMLで返ります（例: `<bdi><a href=… class="extiw">Nintendo</a></bdi>`）。`htmlToText`でタグを捨て、文字参照を戻した文字だけを表示します
+- サムネイルは`crossOrigin = "anonymous"`・Refererなしで読み込みます。照合の画素を読むためと、表示用の`<img>`とキャッシュを共有するためです
 
 ---
 
-## キャッシング戦略
+## ロゴの照合
 
-### IndexedDB TTLキャッシュ（cache.js）
+`describe(img, { reference })`で特徴を求め、`compare(a, b)`で比べます。
 
-**設計**:
+### 前景の取り出し
 
-```javascript
-const DB_NAME = 'ReverseLogoHuntCache';
-const DB_VERSION = 1;
-const STORES = {
-  wikidata: 'wikidata',
-  commons: 'commons',
-  relations: 'relations'
-};
+| 入力 | 前景の決め方 |
+|:--|:--|
+| 写真から囲んだ領域 | 外周2pxの中央値を背景色とし、RGBの距離が60を超える画素を前景にする |
+| 参照ロゴ（外周の半分以上が透明） | 透明度128以上を前景にする（透明な部分は白に合成） |
+| 参照ロゴ（外周が不透明で白くない） | 端まで色が塗られたロゴとみなし、画像全体を前景にする |
 
-// データ構造
-interface CachedData {
-  key: string;
-  value: any;
-  expires: number;  // Unix timestamp (ms)
-}
+改修前の方式は、透明な画素（RGBA=0,0,0,0）を黒としてpHash・色に入れていました。白い紙に印刷されたロゴと、透明な背景の公式ロゴを比べると、背景が白と黒で逆になります。
 
-async function setCached(storeName, key, value, ttlMs = 86400000) {
-  const db = await openDB();
-  const tx = db.transaction(storeName, 'readwrite');
-  const store = tx.objectStore(storeName);
+### 4つの値
 
-  await store.put({
-    key,
-    value,
-    expires: Date.now() + ttlMs
-  });
-}
+- 形: 前景の外接矩形を、縦横比を保って32×32の格子に収め、各マスの前景の割合を3×3でならしてから、柔らかいIoU（Σmin÷Σmax）を取る
+- 明暗の構造: 外接矩形の中の明るさを24×24に縮め、平均0・分散1にそろえて相関を取り、絶対値にする（白抜きの看板にも使える）
+- 縦横比: exp(−1.5×|ln(縦横比Aの比)|)
+- 色: 前景の画素だけで、色相12区分と無彩色1区分（彩度0.25未満か明度0.2未満）の分布を作り、コサイン類似度を取る。白と黒は同じ無彩色の区分に入る
 
-async function getCached(storeName, key) {
-  const db = await openDB();
-  const tx = db.transaction(storeName, 'readonly');
-  const store = tx.objectStore(storeName);
-  const data = await store.get(key);
+照合の合計 = 0.35×形 + 0.25×明暗の構造 + 0.15×縦横比 + 0.25×色
 
-  if (!data) return null;
-  if (Date.now() > data.expires) {
-    // 期限切れ削除
-    await deleteCached(storeName, key);
-    return null;
-  }
+### 評価
 
-  return data.value;
-}
-```
-
-**キャッシュ対象**:
-- **Wikidata検索結果**: 24時間（1日）
-- **Commons画像メタデータ**: 24時間
-- **企業関係データ**: 24時間
-
-**利点**:
-- **オフライン動作**: 一度取得したデータは再利用
-- **API負荷軽減**: Wikidataへのリクエスト削減
-- **高速化**: ネットワーク待ち時間ゼロ
+README.mdの「照合の当たり具合」を見てください。作業側の評価のスクリプトと結果は、このリポジトリには入れていません（ロゴの画像を同梱しないため）。
 
 ---
 
-## セキュリティ対策
+## 候補の並べ方
 
-### 1. XSS対策（main.js:8-14, map.js:17-23）
+`candidate-rank.js`
 
-```javascript
-function escapeHtml(text) {
-  if (text === null || text === undefined) return '';
-  const div = document.createElement('div');
-  div.textContent = text;  // textContentは自動エスケープ
-  return div.innerHTML;
-}
+- 検索の順位の点 = 1 ÷ (1 + 0.5 × (順位 − 1))
+- 種類の点 = 組織かブランドなら1、それ以外は0.4
+- 照合の合計がない候補は0.5とみなす
+- 総合 = 0.4×検索の順位の点 + 0.2×種類の点 + 0.4×照合の合計
+- 1位と2位の差が0.05未満なら、画面で確かめるよう促す
 
-// 使用例
-info.innerHTML = `<div><strong>${escapeHtml(meta.name)}</strong></div>`;
-markerPopup = `<strong>HQ</strong><br/>${escapeHtml(company.label)}`;
-```
-
-**対策箇所**:
-- ファイル名（ユーザー入力）
-- OCRテキスト（Tesseract.js出力）
-- Wikidata企業名（APIレスポンス）
-- Wikimedia Commonsメタデータ
-
-### 2. CSP（Content Security Policy）
-
-```html
-<meta http-equiv="Content-Security-Policy" content="
-  default-src 'self'
-    https://unpkg.com
-    https://cdn.jsdelivr.net
-    https://cdnjs.cloudflare.com
-    https://www.wikidata.org
-    https://query.wikidata.org
-    https://commons.wikimedia.org
-    data: blob:;
-  img-src 'self' data: blob:
-    https://upload.wikimedia.org
-    https://commons.wikimedia.org
-    https://tile.openstreetmap.org;
-  style-src 'self' 'unsafe-inline'
-    https://unpkg.com
-    https://cdn.jsdelivr.net
-    https://cdnjs.cloudflare.com;
-  script-src 'self' 'wasm-unsafe-eval'
-    https://unpkg.com
-    https://cdn.jsdelivr.net
-    https://cdnjs.cloudflare.com;
-  worker-src 'self' blob:;
-  connect-src 'self'
-    https://unpkg.com
-    https://cdn.jsdelivr.net
-    https://www.wikidata.org
-    https://query.wikidata.org
-    https://commons.wikimedia.org
-    https://upload.wikimedia.org
-    https://storage.googleapis.com
-    data:;
-"/>
-```
-
-**ポリシー**:
-- **default-src**: 信頼できるCDNのみ許可
-- **script-src**: `'wasm-unsafe-eval'`でTesseract.js (WASM)対応
-- **img-src**: Commons/OSMタイル許可
-- **インラインスクリプト禁止**: XSS攻撃を防御
-
-### 3. SRI（Subresource Integrity）
-
-```html
-<!-- Leaflet -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      crossorigin="anonymous" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-        crossorigin="anonymous"></script>
-```
-
-**対象**:
-- Leaflet CSS/JS
-- （Cytoscape.jsとExifReaderは動的CDNのため除外）
-
-### 4. セキュアな外部リンク
-
-```html
-<a href="https://github.com/..."
-   target="_blank"
-   rel="noopener noreferrer">GitHub</a>
-```
-
-- **`rel="noopener"`**: `window.opener`アクセス防止
-- **`rel="noreferrer"`**: Refererヘッダー送信防止
+照合だけで決めない理由は、子会社のロゴが親会社のロゴを中に含むことがあるためです。紙に印刷した任天堂のロゴでは、照合だけなら子会社Nintendo Software Technology（0.790）が任天堂（0.753）を上回りました。
 
 ---
 
-## パフォーマンス最適化
+## 自動で候補を囲む
 
-### 1. 画像リサイズ（main.js:75-89）
+`roi-suggest.js`の`suggestRois`
 
-```javascript
-async function resizeImage(file, maxDimension = 1536) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const ratio = Math.min(maxDimension / img.width, maxDimension / img.height, 1);
+1. 長辺320px程度に縮める
+2. Sobelの勾配の絶対値の和が90を超える画素を「インク」とみなす
+3. 横に幅の3%以内のインクをつなぎ（字を語にまとめる）、縦に高さの1%以内をつなぐ
+4. 4近傍の連結成分の外接矩形を候補にする。面積が画像の0.2%未満か60%超、縦横比が16超か1/6未満は外す
+5. 余白（横8%・縦15%）を足して元の大きさに戻し、IoUが0.3を超えて重なるものは点数の高いほうを残す。最大8個
 
-      canvas.width = Math.floor(img.width * ratio);
-      canvas.height = Math.floor(img.height * ratio);
+改修前は、COCO-SSD（物体検出のモデル、約18.6MB）と窓の走査を組み合わせていましたが、物体検出はロゴの検出ではなく、86.5秒かけて文字の断片を8つ出すだけでした（2026-10-09に実測）。
 
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+---
 
-      resolve(canvas);
-    };
-    img.src = URL.createObjectURL(file);
-  });
+## 地図と関係図
+
+- 地図: OpenStreetMapのタイル（`https://tile.openstreetmap.org/{z}/{x}/{y}.png`）。タイルの利用規約が有効なRefererを求めるので、`<meta name="referrer">`は`strict-origin-when-cross-origin`にしています。帰属表示は「© OpenStreetMap contributors」。本社と撮影地点の両方が入るように表示範囲を合わせます
+- 関係図: 既定の配置は同心円（選んだ会社を中心に、関係のある会社をまわりに並べる）。隠れたタブで配置すると大きさ0で計算されるので、タブを表示したときに`cy.resize()`と`cy.fit()`を呼びます
+- 関係図の矢印の曲線は、矢印ごとに設定を残し、表示を切り替えても戻りません
+
+---
+
+## 保存と読み込み
+
+JSONの形（version 3）:
+
+```json
+{
+  "app": "reverse-logo-hunt",
+  "version": 3,
+  "savedAt": "2026-10-09T12:00:00.000Z",
+  "images": [{ "id": "img-1", "name": "board.jpg", "width": 1400, "height": 900, "scale": 1, "exif": { "lat": 35.68, "lng": 139.77 }, "dataUrl": "data:image/png;base64,…" }],
+  "logos": [{
+    "id": "logo-2", "imageId": "img-1", "x": 106, "y": 126, "w": 548, "h": 215, "source": "manual",
+    "ocrText": "Nintendo", "queries": ["Nintendo"], "query": "Nintendo", "status": "done",
+    "candidates": [{ "qid": "Q8093", "rank": 1, "label": "任天堂", "isOrg": true, "hq": { "label": "京都市", "coord": { "lat": 35.01, "lng": 135.77 } },
+      "logo": { "file": "Nintendo.svg", "thumburl": "https://thumb.wikimedia.org/…", "artist": "Nintendo", "license": "Public domain" },
+      "match": { "shape": 0.9, "structure": 0.8, "aspect": 0.95, "color": 0.7, "total": 0.84 }, "combined": 0.93 }],
+    "selectedQid": "Q8093", "selectedBy": "auto"
+  }]
 }
 ```
 
-**効果**:
-- **メモリ削減**: 4Kサイズ → 1536px
-- **OCR高速化**: Tesseract.jsの処理時間短縮
-- **Canvas描画軽量化**: ブラウザー負荷低減
+`sanitizeWorkspace`は、知っている項目だけを型と範囲を確かめて組み直します。
 
-### 2. Tesseract.js Worker管理
-
-```javascript
-async function quickOCR(canvas) {
-  const worker = await Tesseract.createWorker();
-  await worker.loadLanguage('eng');
-  await worker.initialize('eng');
-
-  const { data: { text } } = await worker.recognize(canvas);
-
-  await worker.terminate(); // 重要: メモリリーク防止
-
-  return text.trim();
-}
-```
-
-**工夫**:
-- **即座に終了**: 各ROIごとにWorkerを破棄
-- **メモリ管理**: 長時間実行でのメモリ肥大化防止
-
-### 3. 並列処理の制限
-
-```javascript
-// NG: 全ROIを同時処理（メモリ不足）
-await Promise.all(rois.map(roi => analyzeROI(roi)));
-
-// OK: 順次処理（安定性優先）
-for (const roi of rois) {
-  await analyzeROI(roi);
-}
-```
-
-**理由**:
-- Tesseract.jsはメモリ消費が大きい
-- 5-10ROIの並列処理でブラウザークラッシュのリスク
-- 順次処理で安定性を確保
-
-### 4. キーボードショートカット（main.js:1926-1959）
-
-```javascript
-document.addEventListener('keydown', (e) => {
-  // モーダル表示中はスキップ
-  if (document.querySelector('.marking-modal[style*="display: flex"]')) return;
-  if (document.querySelector('.help-modal[style*="display: flex"]')) return;
-
-  // タブ切り替え（1-4）
-  if (e.key >= '1' && e.key <= '4') {
-    const tabButtons = document.querySelectorAll('.tab-button');
-    const index = parseInt(e.key) - 1;
-    if (tabButtons[index]) tabButtons[index].click();
-  }
-
-  // 画像切り替え（←→）
-  if (e.key === 'ArrowLeft') selectPreviousImage();
-  if (e.key === 'ArrowRight') selectNextImage();
-});
-```
-
-**UX改善**:
-- 頻繁な操作のショートカット化
-- モーダル中は無効化（誤操作防止）
+- 画像は`data:image/(png|jpeg|webp);base64,…`だけ（SVGやHTMLは拒否）。50枚まで
+- QIDは`isQid`に合うものだけ。座標は緯度±90・経度±180の範囲
+- URLは、サムネイルが`thumb.wikimedia.org`か`upload.wikimedia.org`のhttps、出典ページが`commons.wikimedia.org/wiki/`のhttpsだけ
+- 領域の座標は整数にし、画像からはみ出す分は切り詰める
+- 旧版（version 2）は、選ばれていた会社を候補1件として読み替えます。旧版の`creditHtml`（HTML）は捨てます
 
 ---
 
-## 高度な機能
+## 安全対策
 
-### 関係図のエッジ調整（graph.js:174-323）
+### Content Security Policy（`index.html`）
 
-**機能**: Cytoscape.jsのエッジ（矢印）を手動調整
-
-```javascript
-cy.on('tap', 'edge', function(evt) {
-  const edge = evt.target;
-  selectedEdge = edge;
-  showEdgeAdjustmentPanel(edge);
-});
-
-function showEdgeAdjustmentPanel(edge) {
-  const panel = document.getElementById('edgeAdjustPanel');
-
-  // 現在の設定を取得
-  const style = edge.style();
-  const curveStyle = style['curve-style'];
-  const distances = style['control-point-distances'] || [40];
-  const weights = style['control-point-weights'] || [0.5];
-
-  // UIに反映
-  curveStyleSelect.value = curveStyle;
-  distanceSlider.value = distances[0];
-  weightSlider.value = weights[0];
-
-  // リアルタイム更新
-  distanceSlider.addEventListener('input', (e) => {
-    edge.style({
-      'control-point-distances': [parseFloat(e.target.value)]
-    });
-  });
-}
+```
+default-src 'self';
+script-src 'self' 'wasm-unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net;
+style-src 'self' https://unpkg.com 'sha256-pgvDUBa4IjFA2yuSJ2cqcyxmNYJMborsd0ORcRv9vw8=';
+img-src 'self' data: blob: https://thumb.wikimedia.org https://upload.wikimedia.org https://tile.openstreetmap.org;
+font-src 'self';
+connect-src 'self' data: https://www.wikidata.org https://query.wikidata.org https://commons.wikimedia.org https://cdn.jsdelivr.net;
+worker-src 'self' blob:;
+object-src 'none'; base-uri 'none'; form-action 'none'
 ```
 
-**保存機能**:
+- `'wasm-unsafe-eval'`: Tesseract.jsのWASMのため。`'unsafe-eval'`は使いません
+- `style-src`のハッシュ: Cytoscape.js 3.28.1が起動時に差し込む1行`.__________cytoscape_container { position: relative; }`だけを許します
+- `connect-src`の`data:`: Tesseract.jsのコアが中に埋め込んだWASMを`data:` URLで読むため（Firefoxで必要）
+- `worker-src blob:`: Tesseract.jsはワーカーをblob URLで作ります。blobのワーカーはページのCSPを受け継ぐので、言語データの取得先（jsDelivr）を`connect-src`に入れています
+- `frame-ancestors`はmetaでは無視されるので書いていません
 
-```javascript
-const edgeData = cy.edges().map(e => ({
-  id: e.id(),
-  curveStyle: e.style('curve-style'),
-  controlPointDistances: e.style('control-point-distances'),
-  controlPointWeights: e.style('control-point-weights')
-}));
+### SRI
 
-localStorage.setItem('graphEdgeStyles', JSON.stringify(edgeData));
-```
+| ファイル | ハッシュ |
+|:--|:--|
+| leaflet@1.9.4/dist/leaflet.css | sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY= |
+| leaflet@1.9.4/dist/leaflet.js | sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo= |
+| cytoscape@3.28.1/dist/cytoscape.min.js | sha384-J7Q85oZE4GJ/e7+n2aOQsLXfDwwfnA8S2nZAL5BpFsfpCF84zQD7LroZ/dMnLgex |
+| tesseract.js@5.0.5/dist/tesseract.min.js | sha384-sZlPHqJ8Pk1GMyFXfg9vOgDjyUZZe7wE2c0NoPg2z1vs2fmI4wOC0O1ONVyr73qa |
+| exifreader@4.23.5/dist/exif-reader.js | sha384-lV3Kc4L1YkqB4DCasecdSWo5RQEXp9Mc9eeiV6opSzVKpk2Id2jELgNodSyTCDqq |
 
----
+実ファイルから計算し、jsDelivrのAPIが示すSHA-256と一致することを確かめました（2026-10-09）。Tesseract.jsのワーカー・コア・言語データは、ライブラリーが内部で読み込むためSRIを付けられません（版を固定したjsDelivrから読みます）。
 
-## デバッグとロギング
+### 表示
 
-### コンソールログ規約
-
-```javascript
-console.log('[MAP] Initial invalidateSize called');
-console.warn('[MAP] Heatmap failed (zero-size canvas):', err);
-console.error('[COMMONS] Fetch failed:', res.status);
-```
-
-**プレフィックス**:
-- `[MAP]`: map.js
-- `[COMMONS]`: commons.js
-- `[WIKIDATA]`: wikidata.js
-- `[MAIN]`: main.js
-- `[UI]`: UI関連処理
-
-**レベル**:
-- `log`: 情報（正常動作）
-- `warn`: 警告（続行可能なエラー）
-- `error`: エラー（処理失敗）
+- 外部から来た文字列（会社名・説明・作者・ファイル名・OCRの文字）は、すべて`textContent`か`createElement`で入れます。`innerHTML`は使いません（`test/html.test.js`で検査）
+- 地図のポップアップもDOMで組み立てます
 
 ---
 
-## 既知の制限と将来の改善
+## テストと確かめ方
 
-### 現在の制限
+`npm test`（Node.js 22以上、依存なし）
 
-1. **OCR精度**: Tesseract.jsは完璧ではない
-   - 手書き・低解像度ロゴで誤認識
-   - 対策: 手動ROI選択で精度向上
+| ファイル | 内容 |
+|:--|:--|
+| `test/logo-match.test.js` | 合成画像で、紙・灰色の地・暗い地でも本物が1位になる、白抜き、色だけ違う偽物 |
+| `test/brand-text.test.js` | 検索語の候補（略称・日本語・商標記号・文字の高さ） |
+| `test/wikidata-core.test.js` | 実際の応答（`test/fixtures/`）での解析、QIDの検証、関係の向き |
+| `test/commons-core.test.js` | 実際の応答での解析、HTMLから文字を取り出す、URLの検証 |
+| `test/exif-core.test.js` | ExifReaderの出力の形（京都・シドニー・リオ） |
+| `test/candidate-rank.test.js` | 総合と並べ方 |
+| `test/session-core.test.js` | JSONの検証と往復 |
+| `test/roi-suggest.test.js` | 自動で囲む処理 |
+| `test/ocr-prep.test.js` | 拡大・反転・枠の除去 |
+| `test/html.test.js` | CSP・SRI・Referer・innerHTMLを使わないこと・主な要素 |
+| `test/contrast.test.js` | ダーク・ライトの配色のコントラスト比 |
+| `test/format.test.js` | 行の長さ・行数・見えない文字 |
+| `test/readme.test.js` | READMEの構造・表記・数値 |
 
-2. **Wikidata依存**: ロゴ（P154）がない企業は検出不可
-   - カバレッジ: 主要企業の約70%
-   - 対策: Wikidataへの貢献を促進
+ブラウザーでの確認（Playwright、リポジトリの外のスクリプト）では、Chromium・Firefoxで次を確かめています。
 
-3. **ブラウザーメモリ制限**: 大量ROIで不安定
-   - 制限: 最大16ROI
-   - 対策: 順次処理で安定性確保
-
-### 将来の改善案
-
-1. **機械学習ベースのロゴ検出**
-   - TensorFlow.js + MobileNetV2
-   - ブラウザー内推論で精度向上
-
-2. **WebWorkerでの並列処理**
-   - OCRをWorkerに分離
-   - UIブロッキング解消
-
-3. **オフラインPWA化**
-   - Service Worker + Cache API
-   - 完全オフライン動作
-
-4. **カスタムロゴDB**
-   - Wikidataにないロゴの手動登録
-   - localStorage/IndexedDBで管理
+- 看板の画像を囲んで解析し、CSP違反とコンソールのエラーが0件
+- 幅1280・390・320pxとダーク・ライトで、横あふれと44px未満の操作要素が0件、390pxでタッチで領域を囲める
+- EXIFのGPSを読み、地図に本社と撮影地点を出す
+- JSONを書き出して読み込み直すと、選んだ候補と「手動」の区別が残る
 
 ---
 
-## 開発環境
+## 限界と今後
 
-### 推奨ツール
-
-- **エディター**: VS Code + ESLint
-- **ブラウザー**: Chrome/Edge DevTools
-- **ローカルサーバー**: `npx http-server .`
-
-### デバッグ手法
-
-```javascript
-// 1. ブレークポイント
-debugger;
-
-// 2. パフォーマンス測定
-console.time('OCR');
-await quickOCR(canvas);
-console.timeEnd('OCR');
-
-// 3. メモリ使用量
-console.log(performance.memory.usedJSHeapSize / 1024 / 1024, 'MB');
-```
-
----
-
-## 貢献ガイドライン
-
-### コーディング規約
-
-- **ES6+**: モダンJavaScript構文
-- **非同期処理**: async/await優先
-- **命名規則**: camelCase（関数・変数）、UPPER_SNAKE_CASE（定数）
-- **コメント**: 複雑なロジックには必ず説明
-
-### プルリクエスト
-
-1. **機能追加**: 新規モジュールは`js/`に配置
-2. **バグ修正**: 再現手順を明記
-3. **パフォーマンス改善**: ベンチマーク結果を添付
-
----
-
-## ライセンス
-
-MIT License - 詳細は [LICENSE](LICENSE) を参照
-
----
-
-## 参考資料
-
-- [Tesseract.js Documentation](https://github.com/naptha/tesseract.js)
-- [Leaflet API Reference](https://leafletjs.com/reference.html)
-- [Cytoscape.js Documentation](https://js.cytoscape.org/)
-- [Wikidata SPARQL Examples](https://www.wikidata.org/wiki/Wikidata:SPARQL_query_service/queries/examples)
-- [IndexedDB API](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API)
+- OCRは英語の文字だけです。日本語の看板は検索語を手で入れます
+- 文字のないロゴは、検索語を手で入れる必要があります
+- 関係図は、関係が今も続いているか（終了日）や持ち株の比率を区別していません
+- 照合は、遠近の歪みや一部が隠れたロゴに弱い方式です（射影の補正や特徴点の対応づけは入れていません）
