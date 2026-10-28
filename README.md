@@ -404,6 +404,7 @@ reverse-logo-hunt/
 │   ├── roi-suggest.js              # 「自動で候補を囲む」（計算部）
 │   ├── session-core.js             # JSONの書き出しと読み込みの検証（計算部）
 │   ├── storage.js                  # localStorageを使えなくても止まらない読み書き
+│   ├── theme-init.js               # 最初の描画の前に保存したテーマを付ける（headで同期読み込み）
 │   ├── wikidata-core.js            # Wikidataの問い合わせの組み立てと解析（計算部）
 │   └── wikidata.js                 # Wikidataへの問い合わせ（通信とキャッシュ）
 ├── test/                           # node --testのテスト
@@ -429,6 +430,7 @@ reverse-logo-hunt/
 │   ├── roi-suggest.test.js         # 自動で囲む処理のテスト
 │   ├── session-core.test.js        # JSONの検証のテスト
 │   ├── synthetic.js                # テスト用の合成画像（実在のロゴは使わない）
+│   ├── theme-init.test.js          # テーマの判定と読み込み位置のテスト
 │   └── wikidata-core.test.js       # Wikidataの解析のテスト
 ├── .gitignore                      # Gitに入れないファイル
 ├── .nojekyll                       # GitHub PagesでJekyllを使わない

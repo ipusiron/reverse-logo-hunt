@@ -15,7 +15,7 @@ import { sanitizeWorkspace, buildWorkspace } from "./session-core.js";
 import { suggestRois } from "./roi-suggest.js";
 import { openMarking, isMarkingOpen } from "./marking.js";
 import { t, getLang } from "./messages.js";
-import { getItem, setItem, getJsonItem } from "./storage.js";
+import { setItem, getJsonItem } from "./storage.js";
 import { initLang, applyStatic, switchLang } from "./i18n.js";
 
 // 言語は、ほかの文言を出す前に決める
@@ -892,7 +892,8 @@ function applyTheme(theme) {
   themeToggle.querySelector(".theme-label").textContent = t(theme === "light" ? "theme.light" : "theme.dark");
   themeToggle.setAttribute("aria-label", t("theme.toggle"));
 }
-applyTheme(getItem("theme") === "light" ? "light" : "dark");
+// 保存したテーマは js/theme-init.js が <head> で付けている。ここではボタンの表示と aria を合わせるだけ
+applyTheme(document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark");
 themeToggle.addEventListener("click", () => {
   const next = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
   setItem("theme", next);
