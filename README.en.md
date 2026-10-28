@@ -365,6 +365,7 @@ reverse-logo-hunt/
 │   ├── roi-suggest.js              # "Suggest boxes" (calculation)
 │   ├── session-core.js             # JSON export and import validation (calculation)
 │   ├── storage.js                  # localStorage access that keeps working when storage is blocked
+│   ├── theme-init.js               # Applies the saved theme before the first paint (classic script in head)
 │   ├── wikidata-core.js            # Building and parsing Wikidata queries (calculation)
 │   └── wikidata.js                 # Wikidata queries (network and cache)
 ├── test/                           # Tests for node --test
@@ -390,6 +391,7 @@ reverse-logo-hunt/
 │   ├── roi-suggest.test.js         # Tests for suggesting boxes
 │   ├── session-core.test.js        # Tests for JSON validation
 │   ├── synthetic.js                # Synthetic images for tests (no real logos)
+│   ├── theme-init.test.js          # Tests for the theme decision and where it is loaded
 │   └── wikidata-core.test.js       # Tests for Wikidata parsing
 ├── .gitignore                      # Files kept out of Git
 ├── .nojekyll                       # Turns off Jekyll on GitHub Pages

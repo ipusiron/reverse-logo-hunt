@@ -51,6 +51,7 @@
 | `js/messages.js` | 画面 | 画面の文言の辞書（日本語・英語）と、最初の言語の決め方 |
 | `js/i18n.js` | 画面 | data-i18n・data-i18n-attr の要素へ辞書の文言を入れる、言語の切り替え |
 | `js/storage.js` | 画面 | localStorageを使えなくても止まらない読み書き |
+| `js/theme-init.js` | 画面 | 最初の描画の前に保存したテーマを`<html>`へ付ける（`<head>`で同期読み込み。ES moduleではない） |
 | `js/main.js` | 画面 | 全体の組み立てと操作 |
 
 外部のライブラリーは、Leaflet 1.9.4、Cytoscape.js 3.28.1、Tesseract.js 5.0.5、ExifReader 4.23.5です（すべて版を固定し、SRIを付けています）。
@@ -365,6 +366,7 @@ object-src 'none'; base-uri 'none'; form-action 'none'
 | `test/geo.test.js` | 距離と方角 |
 | `test/i18n.test.js` | 日英の辞書（同じキー・差し込み・英語に日本語なし・HTMLとの一致） |
 | `test/readme.test.js` | README（日英）の構造・表記・数値 |
+| `test/theme-init.test.js` | テーマの判定（保存がなければダーク、想定外の値、保存できない環境）と`<head>`での読み込み |
 
 ブラウザーでの確認（Playwright、リポジトリの外のスクリプト）では、Chromium・Firefoxで次を確かめています。
 

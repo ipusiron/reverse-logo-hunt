@@ -43,6 +43,8 @@ Network / UI modules:
 - `js/main.js` - state, rendering, export/import, theme, keyboard
 - `js/messages.js` - UI strings in Japanese and English (same keys); `js/i18n.js` - applies them to `data-i18n` / `data-i18n-attr` and switches language
 - `js/storage.js` - safe localStorage
+- `js/theme-init.js` - classic (non-module) script loaded in `<head>` after `style.css`; sets `data-theme` before the first paint
+  (saved `light` -> light, anything else -> dark; the OS setting is not consulted). `main.js` only syncs the toggle and saves
 
 ## Rules That Tests Enforce
 

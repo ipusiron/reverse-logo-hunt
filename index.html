@@ -26,6 +26,8 @@
   <title>Reverse Logo Hunt</title>
   <link rel="icon" href="data:," />
   <link rel="stylesheet" href="style.css" />
+  <!-- 最初の描画の前に保存したテーマを付ける（ダーク→ライトのちらつき防止）。ES module ではなく同期で読む -->
+  <script src="js/theme-init.js"></script>
 
   <!-- Leaflet 1.9.4（地図） -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
